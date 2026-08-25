@@ -1,0 +1,13 @@
+services:
+  evaluation-lab:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - lab-data:/lab/data
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  lab-data:

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ouro Evaluation Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div><span class="eyebrow">FIU · FALL 2026 · SYNTHETIC LAB</span><h1>Measure before models.</h1></div>
+    <div id="progress" class="progress">Not signed in</div>
+  </header>
+  <main>
+    <section id="signin" class="card narrow">
+      <p class="kicker">Independent annotation</p>
+      <h2>Enter a pseudonymous rater ID</h2>
+      <p>Do not enter your name or email. Evaluator outputs, truth labels, defect families, and repeat markers remain blinded.</p>
+      <form id="signin-form"><input id="rater" pattern="[A-Za-z0-9_-]+" maxlength="80" placeholder="rater-a" required><button>Begin</button></form>
+    </section>
+    <section id="workspace" class="workspace hidden">
+      <article class="card media-card">
+        <div class="meta"><span id="modality"></span><span id="artifact-id"></span></div>
+        <div id="media" class="media"></div>
+      </article>
+      <aside class="card decision-card">
+        <p class="kicker">Your independent judgment</p>
+        <h2>Should this artifact proceed?</h2>
+        <form id="annotation-form">
+          <fieldset><legend>Verdict</legend><div class="choices">
+            <label><input type="radio" name="verdict" value="PASS" required><span>PASS<small>No target defect</small></span></label>
+            <label><input type="radio" name="verdict" value="HOLD"><span>HOLD<small>Target defect present</small></span></label>
+            <label><input type="radio" name="verdict" value="UNSURE"><span>UNSURE<small>Cannot decide defensibly</small></span></label>
+          </div></fieldset>
+          <label class="range">Confidence <output id="confidence-output">75%</output><input id="confidence" type="range" min="0" max="100" value="75"></label>
+          <fieldset><legend>Reason codes</legend><div class="checks">
+            <label><input type="checkbox" name="reason" value="visual_integrity">Visual integrity</label>
+            <label><input type="checkbox" name="reason" value="audio_integrity">Audio integrity</label>
+            <label><input type="checkbox" name="reason" value="temporal_integrity">Temporal integrity</label>
+            <label><input type="checkbox" name="reason" value="intent_integrity">Intent integrity</label>
+          </div></fieldset>
+          <label>Optional note<textarea id="note" maxlength="500" rows="3"></textarea></label>
+          <p id="error" class="error" role="alert"></p>
+          <button id="submit">Submit judgment</button>
+        </form>
+      </aside>
+    </section>
+    <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p></section>
+  </main>
+  <footer>Synthetic demonstration only · No production or customer data · Contract v1.0.0</footer>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: make check
+      - run: make bootstrap
+      - run: make benchmark
+      - run: python -m ouro_eval_lab.cli verify --manifest data/fixtures/manifest.json
+      - name: Reproducibility check
+        run: |
+          cp data/exports/report.json /tmp/report-first.json
+          make clean
+          make bootstrap
+          make benchmark
+          cmp /tmp/report-first.json data/exports/report.json

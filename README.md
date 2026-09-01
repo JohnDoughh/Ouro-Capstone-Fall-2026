@@ -17,6 +17,7 @@ This is a working v0.1 scaffold, not a completed research lab and not a source o
 - [Research protocol](docs/RESEARCH_PROTOCOL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Independent rerun procedure](docs/INDEPENDENT_RERUN.md)
+- [Student contribution workflow](CONTRIBUTING.md)
 
 Do not begin real participant annotation until FIU has recorded the applicable human-subjects determination and the gates in `CURRENT_STATUS.md` have been satisfied.
 

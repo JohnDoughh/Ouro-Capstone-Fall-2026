@@ -16,12 +16,30 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def bootstrap_demo(root: Path, db_path: Path, seed: int) -> tuple[Path, Path, int]:
+    """Create or verify the deterministic public demo and ingest it idempotently."""
+    manifest_path = root / "manifest.json"
+    outputs_path = root / "evaluator_outputs.json"
+    if manifest_path.exists() and outputs_path.exists():
+        verified = verify_manifest(manifest_path)
+    else:
+        manifest_path, outputs_path = generate(root, seed)
+        verified = verify_manifest(manifest_path)
+    initialize(db_path)
+    count = ingest(db_path, verified["manifest"], manifest_path.parent)
+    return manifest_path, outputs_path, count
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ouro-eval-lab")
     sub = parser.add_subparsers(dest="command", required=True)
     seed = sub.add_parser("seed")
     seed.add_argument("--root", type=Path, required=True)
     seed.add_argument("--seed", type=int, default=20260825)
+    bootstrap = sub.add_parser("bootstrap")
+    bootstrap.add_argument("--root", type=Path, required=True)
+    bootstrap.add_argument("--db", type=Path, required=True)
+    bootstrap.add_argument("--seed", type=int, default=20260825)
     init = sub.add_parser("init-db")
     init.add_argument("--db", type=Path, required=True)
     ingestion = sub.add_parser("ingest")
@@ -46,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "seed":
         manifest, outputs = generate(args.root, args.seed)
         print(f"generated {manifest} and {outputs}")
+    elif args.command == "bootstrap":
+        manifest, outputs, count = bootstrap_demo(args.root, args.db, args.seed)
+        print(f"ready: {count} verified artifacts, {manifest}, {outputs}, {args.db}")
     elif args.command == "init-db":
         initialize(args.db)
         print(f"initialized {args.db}")

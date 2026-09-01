@@ -4,9 +4,7 @@ PYTHON ?= python3
 SEED ?= 20260825
 
 bootstrap:
-	$(PYTHON) -m ouro_eval_lab.cli seed --root data/fixtures --seed $(SEED)
-	$(PYTHON) -m ouro_eval_lab.cli init-db --db data/lab.db
-	$(PYTHON) -m ouro_eval_lab.cli ingest --db data/lab.db --manifest data/fixtures/manifest.json
+	$(PYTHON) -m ouro_eval_lab.cli bootstrap --root data/fixtures --db data/lab.db --seed $(SEED)
 
 run:
 	$(PYTHON) -m ouro_eval_lab.cli serve --db data/lab.db --port 8080

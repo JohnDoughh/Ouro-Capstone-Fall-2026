@@ -26,7 +26,7 @@ The implementation commit has passing CI for unit tests, compilation, public-bou
 - Brier score, expected calibration error, risk-versus-coverage, and basic Cohen's kappa.
 - JSON and CSV annotation exports.
 - Data contract, threat model, research protocol, and independent-rerun guide.
-- Docker, Compose, Make, tests, and CI scaffolding.
+- Docker, Compose, Make, tests, CI scaffolding, and an idempotent empty-volume startup path.
 
 ## Important limitations
 
@@ -114,7 +114,10 @@ The current boundary scanner skips the generated data directory. That behavior i
 
 ### Deployment
 
-The local Make workflow is the demonstrated path. Docker and Compose require a clean-start verification. The named Compose volume can hide image-time seeded data, so the startup path must initialize or seed an empty volume explicitly.
+The local Make workflow is the demonstrated path. Docker and Compose now initialize
+or verify the deterministic synthetic demo at container start, including when the
+named data volume is empty. The Compose service also exposes a health check. A second
+person must still record the independent clean-checkout rerun required by the protocol.
 
 ### Holdout integrity
 

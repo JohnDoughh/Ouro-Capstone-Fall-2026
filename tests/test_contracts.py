@@ -3,12 +3,23 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ouro_eval_lab.cli import bootstrap_demo
 from ouro_eval_lab.contracts import ContractError, validate_evaluator_output
 from ouro_eval_lab.fixtures import generate
 from ouro_eval_lab.runner import load_json, verify_manifest
 
 
 class ContractTests(unittest.TestCase):
+    def test_bootstrap_is_idempotent_from_empty_data_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "fixtures"
+            db_path = Path(directory) / "lab.db"
+            first = bootstrap_demo(root, db_path, 20260825)
+            first_manifest = first[0].read_bytes()
+            second = bootstrap_demo(root, db_path, 20260825)
+            self.assertEqual(first[2], second[2])
+            self.assertEqual(first_manifest, second[0].read_bytes())
+
     def test_seed_is_byte_reproducible_and_manifest_verifies(self):
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
             manifest_a, outputs_a = generate(Path(first), 7)

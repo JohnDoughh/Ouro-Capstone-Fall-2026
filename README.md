@@ -6,18 +6,32 @@ A standalone, public-safe research scaffold for FIU's Fall 2026 capstone. The la
 
 This repository contains only synthetic fixtures and frozen, anonymous evaluator outputs. It has no connection to Ouro production systems, customer data, private prompts, model routing, repair logic, credentials, or commercial thresholds.
 
+## Start here
+
+This is a working v0.1 scaffold, not a completed research lab and not a source of research findings.
+
+- [Current implementation status and research gates](CURRENT_STATUS.md)
+- [Proposed three-team vertical slices](TEAM_SLICES.md)
+- [First combined meeting checklist](KICKOFF_CHECKLIST.md)
+- [Frozen public data contract](docs/DATA_CONTRACT.md)
+- [Research protocol](docs/RESEARCH_PROTOCOL.md)
+- [Threat model](docs/THREAT_MODEL.md)
+- [Independent rerun procedure](docs/INDEPENDENT_RERUN.md)
+
+Do not begin real participant annotation until FIU has recorded the applicable human-subjects determination and the gates in `CURRENT_STATUS.md` have been satisfied.
+
 ## What ships in the scaffold
 
-- deterministic multimodal fixtures and SHA-256 manifests;
+- deterministic synthetic fixtures and SHA-256 manifests;
 - a frozen evaluator-output contract using anonymous evaluator aliases;
-- blinded, randomized annotations with confidence, timing, and repeat-item controls;
-- raw disagreement preservation and separate adjudication records;
-- a benchmark runner for false `PASS`, false `HOLD`, calibration, Brier score, ECE, and risk-versus-coverage;
-- inter-rater agreement with confidence intervals;
-- a browser dashboard and JSON/CSV export;
-- export-boundary validation, Docker support, tests, and handoff documentation.
+- a browser annotation interface with blinded randomized assignments, confidence, timing, and repeat-item controls;
+- raw annotation preservation and a separate adjudication database schema;
+- a synthetic benchmark runner for false `PASS`, false `HOLD`, Brier score, ECE, and risk-versus-coverage;
+- basic two-rater agreement with confidence intervals;
+- JSON/CSV annotation export;
+- export-boundary scanning, Docker support, tests, and handoff documentation.
 
-The included outputs demonstrate the pipeline. They are synthetic examples, not research findings or claims about Ouro.
+The current fixtures and outputs demonstrate the pipeline. They are synthetic examples, not research findings or claims about Ouro. The current video fixtures are JSON placeholders rather than playable full-video artifacts. The current benchmark compares anonymous evaluator outputs with seeded synthetic truth; human-grounded comparison is a required student deliverable.
 
 ## Quick start
 
@@ -28,9 +42,9 @@ make bootstrap
 make run
 ```
 
-Open <http://localhost:8080>. Use separate pseudonymous rater IDs (for example `rater-a` and `rater-b`) to create independent judgments.
+Open <http://localhost:8080>. Use separate pseudonymous rater IDs such as `rater-a` and `rater-b` only for the synthetic demonstration.
 
-Run the reproducible benchmark:
+Run the reproducible synthetic benchmark:
 
 ```bash
 make benchmark
@@ -42,15 +56,17 @@ Run all checks:
 make check
 ```
 
-## Workflow
+## Demonstration workflow
 
 1. `seed` generates the same synthetic artifacts from the same seed.
 2. `ingest` verifies every artifact against its SHA-256 manifest.
 3. The API creates randomized assignments, including blinded repeats.
-4. Raters annotate without seeing ground truth or evaluator outputs.
-5. `benchmark` joins frozen outputs to ground truth by artifact hash and writes an auditable report.
-6. `export` emits only allow-listed, nonconfidential fields.
+4. Raters annotate without seeing seeded truth or evaluator outputs.
+5. `benchmark` joins frozen outputs to seeded synthetic truth by artifact hash and writes an auditable demonstration report.
+6. `export` emits allow-listed annotation fields.
 7. A second person follows `docs/INDEPENDENT_RERUN.md` from a clean checkout.
+
+See `CURRENT_STATUS.md` for the differences between this demonstration and a valid human-grounded study.
 
 ## Commands
 
@@ -70,5 +86,4 @@ python -m ouro_eval_lab.cli export --db data/lab.db --out data/exports/annotatio
 - Do not treat synthetic demo metrics as conclusions.
 - Preserve independent judgments and disagreement; adjudication is an additional record, never an overwrite.
 - Pin analyses to artifact hashes, manifest version, evaluator alias, code commit, and random seed.
-
-See [DATA_CONTRACT.md](docs/DATA_CONTRACT.md), [THREAT_MODEL.md](docs/THREAT_MODEL.md), and [RESEARCH_PROTOCOL.md](docs/RESEARCH_PROTOCOL.md) before adding data.
+- Do not place private student or sponsor contact information in this public repository.

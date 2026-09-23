@@ -32,7 +32,7 @@ Do not begin real participant annotation until FIU has recorded the applicable h
 - JSON/CSV annotation export;
 - export-boundary scanning, Docker support, tests, and handoff documentation.
 
-The current fixtures and outputs demonstrate the pipeline. They are synthetic examples, not research findings or claims about Ouro. The current video fixtures are JSON placeholders rather than playable full-video artifacts. The current benchmark compares anonymous evaluator outputs with seeded synthetic truth; human-grounded comparison is a required student deliverable.
+The original seeded benchmark fixtures and outputs demonstrate the pipeline. They are synthetic examples, not research findings or claims about Ouro. Its original video records are JSON placeholders; a separate [playable fictional visual pair](data/public_playable/README.md) now exercises the browser video path and human visual review. It has no real evaluator outputs. The current benchmark compares anonymous seeded demo outputs with synthetic truth; human-grounded comparison is a required student deliverable.
 
 ## Quick start
 

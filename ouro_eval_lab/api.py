@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import mimetypes
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -59,7 +60,7 @@ class LabHandler(BaseHTTPRequestHandler):
                 rater = self._rater(query)
                 with connect(self.db_path) as db:
                     row = db.execute(
-                        """SELECT x.fixture_root, x.relative_path, x.mime_type FROM assignments a
+                        """SELECT x.fixture_root, x.relative_path, x.mime_type, x.sha256, x.byte_length FROM assignments a
                            JOIN artifacts x ON x.sha256=a.artifact_sha256
                            WHERE a.assignment_id=? AND a.rater_id=?""",
                         (assignment_id, rater),
@@ -71,6 +72,8 @@ class LabHandler(BaseHTTPRequestHandler):
                 if root not in target.parents:
                     return self._json(403, {"error": "invalid artifact path"})
                 body = target.read_bytes()
+                if len(body) != row["byte_length"] or hashlib.sha256(body).hexdigest() != row["sha256"]:
+                    return self._json(409, {"error": "artifact integrity failure"})
                 self.send_response(200)
                 self.send_header("Content-Type", row["mime_type"] or mimetypes.guess_type(target.name)[0] or "application/octet-stream")
                 self.send_header("Content-Length", str(len(body)))

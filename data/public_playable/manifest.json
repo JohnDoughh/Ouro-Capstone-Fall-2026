@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "syn-orbit-clean",
+      "byte_length": 41914,
+      "defect_family": "fictional_product_label_mismatch",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clean.mp4",
+      "sha256": "2f93ab0a8d6fa1bf35cd9ea9d89c16e6a7c0c54d7dd634e10af46062bdf7f8f6",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-orbit-label-defect",
+      "byte_length": 42181,
+      "defect_family": "fictional_product_label_mismatch",
+      "defect_present": true,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "label_defect.mp4",
+      "sha256": "ab338d079b110d468f08c8b4adfd6f8885bae3808a9016882e919c93b3ff251b",
+      "split": "development",
+      "synthetic": true
+    }
+  ],
+  "benchmark_id": "orbit-playable-synthetic-v1",
+  "contract_version": "1.0.0",
+  "created_at": "2026-09-23T00:00:00Z",
+  "seed": 20260923
+}

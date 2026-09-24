@@ -45,6 +45,18 @@ The command:
 6. marks calibration and defect-confusion analysis ineligible until independent
    reference labels exist.
 
+The validator rejects contradictory coverage rather than guessing which field
+to trust. Complete coverage cannot contain an inconclusive modality and has
+an unassessed defect mapping. Incomplete coverage has an inconclusive defect
+assessment, including when all modality states are covered but other completion
+evidence is unavailable. A failed modality is preserved as failed; it does not
+become a human defect label. Any native delivery decision can coexist with
+incomplete coverage.
+
+Byte length must be a positive JSON integer, not a boolean. Malformed field
+types and evidence-code lists are rejected as contract errors. These checks
+establish structural consistency only, not sponsor authorization or provenance.
+
 ## Genuine versus simulated provenance
 
 A sanitized evaluation with `canonical-approved-synthetic` provenance is marked

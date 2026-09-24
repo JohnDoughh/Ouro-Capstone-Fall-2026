@@ -6,7 +6,7 @@ import io
 import json
 from pathlib import Path
 
-from .contracts import validate_evaluator_output, validate_manifest
+from .contracts import validate_evaluator_output, validate_manifest, validate_native_avc_output
 from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
 
@@ -64,6 +64,55 @@ def run_benchmark(manifest_path: Path, outputs_path: Path) -> dict:
         "outputs_sha256": hashlib.sha256(outputs_path.read_bytes()).hexdigest(),
     })
     return report
+
+
+
+def inspect_native_avc(manifest_path: Path, evaluation_path: Path) -> dict:
+    """Inspect one sanitized native AVC result without treating it as v1 truth.
+
+    This intentionally performs no PASS/HOLD mapping, calibration, Brier score,
+    ECE, false-pass or false-hold calculation. Those require independent human
+    reference labels rather than AVC's operational delivery decision.
+    """
+    verified = verify_manifest(manifest_path)
+    manifest = verified["manifest"]
+    evaluation = load_json(evaluation_path)
+    if not isinstance(evaluation, dict):
+        raise ValueError("native AVC evaluation must be one JSON object")
+    validate_native_avc_output(evaluation)
+    by_sha = {row["sha256"]: row for row in manifest["artifacts"]}
+    digest = evaluation["media_sha256"]
+    if digest not in by_sha:
+        raise ValueError(f"native AVC output references unknown artifact hash: {digest}")
+    artifact = by_sha[digest]
+    if artifact["byte_length"] != evaluation["media_bytes"]:
+        raise ValueError("native AVC output media byte length does not match manifest")
+    genuine = evaluation["provenance"] == "canonical-approved-synthetic"
+    return {
+        "schema_version": evaluation["schema_version"],
+        "benchmark_id": manifest["benchmark_id"],
+        "artifact_id": artifact["artifact_id"],
+        "media_sha256": digest,
+        "evaluator_alias": evaluation["evaluator_alias"],
+        "evaluated_at": evaluation["evaluated_at"],
+        "provenance": evaluation["provenance"],
+        "genuine_avc": genuine,
+        "delivery_decision": evaluation["delivery_decision"],
+        "coverage": evaluation["coverage"],
+        "modalities": evaluation["modalities"],
+        "defect_assessment": evaluation["defect_assessment"],
+        "probability": None,
+        "probability_status": evaluation["probability_status"],
+        "probability_reason": evaluation["probability_reason"],
+        "evidence_codes": evaluation["evidence_codes"],
+        "calibration_eligible": False,
+        "defect_confusion_matrix_eligible": False,
+        "warning": (
+            "Native AVC inspection only. Delivery decisions are not human defect truth; "
+            "null probability is excluded from calibration. Preserve blinded human judgments "
+            "before revealing evaluator answers."
+        ),
+    }
 
 
 EXPORT_FIELDS = [

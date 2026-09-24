@@ -107,6 +107,47 @@ class ContractTests(unittest.TestCase):
             # Existing v1 seeded benchmark remains valid and unchanged.
             self.assertEqual(run_benchmark(manifest, outputs)["contract_version"], "1.0.0")
 
+    def test_native_avc_rejects_contradictory_coverage(self):
+        baseline = self._native_avc_output({"sha256": "a" * 64, "byte_length": 100})
+        cases = []
+        output = copy.deepcopy(baseline)
+        output["modalities"]["video_motion"] = "inconclusive"
+        cases.append(output)
+        output = copy.deepcopy(baseline)
+        output["defect_assessment"] = "inconclusive"
+        cases.append(output)
+        output = copy.deepcopy(baseline)
+        output["coverage"] = "incomplete"
+        output["evidence_codes"].append("COVERAGE_INCOMPLETE")
+        cases.append(output)
+        for output in cases:
+            with self.subTest(output=output), self.assertRaises(ContractError):
+                validate_native_avc_output(output)
+
+    def test_native_avc_rejects_malformed_json_types(self):
+        baseline = self._native_avc_output({"sha256": "a" * 64, "byte_length": 100})
+        for field, value in [("media_bytes", True), ("media_sha256", None),
+                             ("delivery_decision", []), ("provenance", {}),
+                             ("evidence_codes", [[], {}, 1, None])]:
+            output = copy.deepcopy(baseline)
+            output[field] = value
+            with self.subTest(field=field), self.assertRaises(ContractError):
+                validate_native_avc_output(output)
+
+    def test_native_avc_incomplete_coverage_preserves_operational_decisions(self):
+        for decision in ("approve", "hold", "reject"):
+            output = self._native_avc_output({"sha256": "a" * 64, "byte_length": 100})
+            output.update(delivery_decision=decision, coverage="incomplete",
+                          defect_assessment="inconclusive", provenance="simulated-test-only")
+            output["evidence_codes"].append("COVERAGE_INCOMPLETE")
+            # Completion can be unavailable even when modality states are covered.
+            validate_native_avc_output(output)
+            output["modalities"]["video_motion"] = "inconclusive"
+            validate_native_avc_output(output)
+        output = self._native_avc_output({"sha256": "a" * 64, "byte_length": 100})
+        output["modalities"]["video_motion"] = "failed"
+        validate_native_avc_output(output)  # Failed is not the same as unassessed coverage.
+
     def test_private_evaluator_fields_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             _, outputs = generate(Path(directory), 7)

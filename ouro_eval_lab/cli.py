@@ -7,7 +7,7 @@ from pathlib import Path
 from .api import serve
 from .contracts import validate_manifest
 from .fixtures import generate
-from .runner import export_annotations, load_json, run_benchmark, verify_manifest
+from .runner import export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
 from .store import connect, ingest, initialize
 
 
@@ -55,6 +55,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--db", type=Path, required=True)
     export.add_argument("--out", type=Path, required=True)
     export.add_argument("--format", choices=["json", "csv"], default="json")
+    native = sub.add_parser("inspect-avc")
+    native.add_argument("--manifest", type=Path, required=True)
+    native.add_argument("--evaluation", type=Path, required=True)
+    native.add_argument("--out", type=Path, required=True)
     server = sub.add_parser("serve")
     server.add_argument("--db", type=Path, required=True)
     server.add_argument("--host", default="127.0.0.1")
@@ -84,6 +88,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "export":
         with connect(args.db) as db:
             _write(args.out, export_annotations(db, args.format))
+        print(f"wrote {args.out}")
+    elif args.command == "inspect-avc":
+        report = inspect_native_avc(args.manifest, args.evaluation)
+        _write(args.out, json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.out}")
     elif args.command == "serve":
         initialize(args.db)

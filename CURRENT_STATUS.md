@@ -1,6 +1,6 @@
 # Current Status
 
-Status date: 2026-09-01  
+Status date: 2026-09-24  
 Repository phase: public-safe v0.1 research scaffold  
 Research status: no real participant data has been approved or collected
 
@@ -25,6 +25,8 @@ The implementation commit has passing CI for unit tests, compilation, public-bou
 - False PASS and false HOLD calculations with Wilson intervals.
 - Brier score, expected calibration error, risk-versus-coverage, and basic Cohen's kappa.
 - JSON and CSV annotation exports.
+- Playable fictional MP4 practice fixtures with byte-bound manifests.
+- A separately versioned native AVC inspection validator/CLI that preserves native decisions and explicitly excludes unavailable probability from calibration.
 - Data contract, threat model, research protocol, and independent-rerun guide.
 - Docker, Compose, Make, tests, CI scaffolding, and an idempotent empty-volume startup path.
 
@@ -54,7 +56,7 @@ The synthetic corpus contains 16 demonstration artifacts:
 - text fixtures;
 - JSON frame-sequence placeholders labeled as video.
 
-The JSON placeholders are not full video. Actual MP4 or other approved video containers, audio tracks, temporal playback, and timestamped defect evidence are still required.
+The original JSON placeholders are not full video. A public-safe fictional MP4 pair now exercises browser playback and visual review, but broader approved full-video/full-audio coverage and timestamped evidence remain required.
 
 ### Annotation depth
 
@@ -79,8 +81,12 @@ The scaffold calculates basic calibration metrics, but it does not yet provide:
 - reliability plots;
 - pre-registered asymmetric error costs;
 - human-grounded evaluator calibration;
-- an evaluator NOT_REVIEWED or insufficient-evidence state;
+- human-grounded evaluator calibration;
 - policy selection that is isolated from the holdout.
+
+Native AVC inspection is now separated from v1 calibration: its final probability
+is explicitly unavailable/null, so native AVC records are excluded rather than
+coerced into Brier/ECE calculations.
 
 ### Intent Fidelity
 
@@ -147,8 +153,8 @@ All of the following must be satisfied:
 Ouro must provide, after the appropriate approvals:
 
 - approved synthetic and separately reviewed sanitized artifact packages;
-- frozen evaluator outputs using anonymous version aliases;
-- an Ouro-controlled private-to-public export adapter;
+- authorized sanitized native AVC evaluation packages using anonymous version aliases;
+- the Ouro-controlled private-to-public export adapter and approved release record;
 - the first priority defect families;
 - sanitized intent manifests for the Intent Fidelity subset;
 - rights, likeness, voice, and export approval for every Ouro-supplied artifact;

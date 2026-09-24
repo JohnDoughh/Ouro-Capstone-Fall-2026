@@ -14,6 +14,7 @@ This is a working v0.1 scaffold, not a completed research lab and not a source o
 - [Proposed three-team vertical slices](TEAM_SLICES.md)
 - [First combined meeting checklist](KICKOFF_CHECKLIST.md)
 - [Frozen public data contract](docs/DATA_CONTRACT.md)
+- [Native AVC inspection guide](docs/NATIVE_AVC_INSPECTION.md)
 - [Research protocol](docs/RESEARCH_PROTOCOL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Independent rerun procedure](docs/INDEPENDENT_RERUN.md)
@@ -30,6 +31,7 @@ Do not begin real participant annotation until FIU has recorded the applicable h
 - a synthetic benchmark runner for false `PASS`, false `HOLD`, Brier score, ECE, and risk-versus-coverage;
 - basic two-rater agreement with confidence intervals;
 - JSON/CSV annotation export;
+- a separately versioned native AVC inspection path that preserves native approve/hold/reject, null probability, coverage, and modality states without changing the frozen v1 benchmark;
 - export-boundary scanning, Docker support, tests, and handoff documentation.
 
 The original seeded benchmark fixtures and outputs demonstrate the pipeline. They are synthetic examples, not research findings or claims about Ouro. Its original video records are JSON placeholders; a separate [playable fictional visual pair](data/public_playable/README.md) now exercises the browser video path and human visual review. It has no real evaluator outputs. The current benchmark compares anonymous seeded demo outputs with synthetic truth; human-grounded comparison is a required student deliverable.
@@ -78,6 +80,7 @@ python -m ouro_eval_lab.cli ingest --db data/lab.db --manifest data/fixtures/man
 python -m ouro_eval_lab.cli serve --db data/lab.db --port 8080
 python -m ouro_eval_lab.cli benchmark --manifest data/fixtures/manifest.json --outputs data/fixtures/evaluator_outputs.json --out data/exports/report.json
 python -m ouro_eval_lab.cli export --db data/lab.db --out data/exports/annotations.json
+python -m ouro_eval_lab.cli inspect-avc --manifest path/to/manifest.json --evaluation path/to/evaluation.json --out data/exports/native-avc-inspection.json
 ```
 
 ## Non-negotiable boundaries

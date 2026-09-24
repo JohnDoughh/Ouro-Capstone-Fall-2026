@@ -52,3 +52,32 @@ Adjudication is stored as a separate append-only decision linked to annotations.
 - Added optional fields require a minor version.
 - Clarifications and test-only changes require a patch version.
 - Every contract change needs validator and regression-test updates.
+
+
+## Separately versioned native AVC inspection
+
+The frozen 1.0.0 evaluator-output contract above remains unchanged. Genuine AVC
+reports do **not** satisfy it: AVC's native delivery decision is
+`approve`/`hold`/`reject`, and the native report version used for this study
+does not provide a calibrated final probability. Converting those fields into
+v1 `PASS`/`HOLD` plus a fabricated probability is prohibited.
+
+A separate inspection-only validator accepts sponsor-sanitized
+`2.0.0-proposed.1` records with:
+
+- exact media SHA-256 and byte length;
+- anonymous evaluator alias `evaluator-01`;
+- native `approve`/`hold`/`reject` delivery decision;
+- complete/incomplete evidence coverage;
+- the five controlled modality states;
+- `probability: null` with `PROBABILITY_NOT_REPORTED`;
+- allow-listed provenance/evidence codes only.
+
+This inspection path does not feed `benchmark`, Brier score, ECE, false-PASS,
+false-HOLD, or defect confusion metrics. Those analyses require independently
+derived human reference labels. A native AVC delivery decision is operational
+behavior, not ground-truth defect presence.
+
+The evaluator answer must remain hidden from raters until their blinded human
+judgments are frozen. Use `inspect-avc` only for post-review sponsor/student
+analysis of an authorized sanitized evaluation file.

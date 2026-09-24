@@ -118,6 +118,8 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     Native delivery decisions are not binary defect labels and AVC does not
     report a calibrated final probability for this report version.
     """
+    if not isinstance(record, dict):
+        raise ContractError("native AVC output must be one JSON object")
     allowed = {
         "schema_version", "audience", "import_ready", "provenance", "evaluator_alias",
         "evaluated_at", "media_sha256", "media_bytes", "delivery_decision", "coverage",
@@ -128,6 +130,14 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     unknown = sorted(record.keys() - allowed)
     if unknown:
         raise ContractError(f"native AVC output contains forbidden/unknown fields: {', '.join(unknown)}")
+    string_fields = {
+        "schema_version", "audience", "provenance", "evaluator_alias", "evaluated_at",
+        "media_sha256", "delivery_decision", "coverage", "defect_assessment",
+        "probability_status", "probability_reason",
+    }
+    for field in sorted(string_fields):
+        if not isinstance(record[field], str):
+            raise ContractError(f"native AVC {field} must be a string")
     if record["schema_version"] != NATIVE_AVC_VERSION:
         raise ContractError("unsupported native AVC schema version")
     if record["audience"] != "sponsor-review-only" or record["import_ready"] is not False:
@@ -139,7 +149,7 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     _utc(record["evaluated_at"], "evaluated_at")
     if not SHA256_RE.fullmatch(record["media_sha256"]):
         raise ContractError("invalid native AVC media_sha256")
-    if not isinstance(record["media_bytes"], int) or record["media_bytes"] <= 0:
+    if type(record["media_bytes"]) is not int or record["media_bytes"] <= 0:
         raise ContractError("native AVC media_bytes must be a positive integer")
     if record["delivery_decision"] not in NATIVE_AVC_DECISIONS:
         raise ContractError("native AVC delivery_decision must be approve, hold, or reject")
@@ -148,16 +158,24 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     modalities = record["modalities"]
     if not isinstance(modalities, dict) or set(modalities) != NATIVE_AVC_MODALITIES:
         raise ContractError("native AVC modalities must contain exactly the five public modality names")
-    if any(value not in NATIVE_AVC_MODALITY_STATES for value in modalities.values()):
+    if any(not isinstance(value, str) or value not in NATIVE_AVC_MODALITY_STATES
+           for value in modalities.values()):
         raise ContractError("native AVC modality states must be covered, failed, or inconclusive")
     if record["defect_assessment"] not in {"unassessed", "inconclusive"}:
         raise ContractError("native AVC defect_assessment must be unassessed or inconclusive")
+    if record["coverage"] == "complete" and "inconclusive" in modalities.values():
+        raise ContractError("complete native AVC coverage cannot contain inconclusive modalities")
+    expected_assessment = "inconclusive" if record["coverage"] == "incomplete" else "unassessed"
+    if record["defect_assessment"] != expected_assessment:
+        raise ContractError("native AVC defect_assessment contradicts coverage")
     if record["probability"] is not None or record["probability_status"] != "unavailable":
         raise ContractError("native AVC probability must remain null/unavailable")
     if record["probability_reason"] != "PROBABILITY_NOT_REPORTED":
         raise ContractError("native AVC probability reason must be PROBABILITY_NOT_REPORTED")
     codes = record["evidence_codes"]
-    if not isinstance(codes, list) or not 4 <= len(codes) <= 5 or len(set(codes)) != len(codes):
+    if not isinstance(codes, list) or not all(isinstance(code, str) for code in codes):
+        raise ContractError("native AVC evidence_codes must be a string list")
+    if not 4 <= len(codes) <= 5 or len(set(codes)) != len(codes):
         raise ContractError("native AVC evidence_codes must contain four or five unique codes")
     if any(code not in NATIVE_AVC_EVIDENCE_CODES for code in codes):
         raise ContractError("native AVC evidence_codes contain an unsupported code")

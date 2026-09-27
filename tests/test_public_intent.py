@@ -45,6 +45,15 @@ class PublicIntentClipTests(unittest.TestCase):
             self.assertEqual(reveal.verify(commitments, root, manifest), [])
             (root / "clipX.intent.json").write_bytes(body + b" ")
             self.assertEqual(len(reveal.verify(commitments, root, manifest)), 1)
+            (root / "clipX.intent.json").write_bytes(body)
+            # Every manifest clip must be committed and revealed; nothing extra.
+            commitments.write_text("")
+            self.assertEqual(len(reveal.verify(commitments, root, manifest)), 1)
+            commitments.write_text(
+                f"{hashlib.sha256(body).hexdigest()}  clipX.intent.json\n"
+                f"{hashlib.sha256(b'x').hexdigest()}  clipY.intent.json\n"
+            )
+            self.assertEqual(len(reveal.verify(commitments, root, manifest)), 2)
 
 
 if __name__ == "__main__":

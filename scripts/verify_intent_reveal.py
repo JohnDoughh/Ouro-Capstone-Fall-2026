@@ -32,6 +32,13 @@ def verify(commitments_path: Path, records_dir: Path, manifest_path: Path) -> li
     commitments = read_commitments(commitments_path)
     artifacts = {a["relative_path"]: a["artifact_id"] for a in json.loads(manifest_path.read_text())["artifacts"]}
     problems = []
+    expected = {Path(clip).stem + ".intent.json" for clip in artifacts}
+    for name in sorted(expected - set(commitments)):
+        problems.append(f"{name}: no commitment for a manifest clip")
+    for name in sorted(set(commitments) - expected):
+        problems.append(f"{name}: commitment for a clip not in the manifest")
+    if not expected:
+        problems.append("manifest lists no clips")
     for name, digest in commitments.items():
         record_path = records_dir / name
         if not record_path.is_file():

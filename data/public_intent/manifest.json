@@ -1,0 +1,56 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "syn-intent-01",
+      "byte_length": 117078,
+      "defect_family": "none_seeded_intent_recovery_only",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip01.mp4",
+      "sha256": "19831bf4048e2fbe4bbe2cf2010f972b874bdef46aae5f024643104d9004c8c4",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-intent-02",
+      "byte_length": 113628,
+      "defect_family": "none_seeded_intent_recovery_only",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip02.mp4",
+      "sha256": "db5be5b6819c4d83f105952ebce4f59e0a025239c9ae16910c26a1753696d4a4",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-intent-03",
+      "byte_length": 112409,
+      "defect_family": "none_seeded_intent_recovery_only",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip03.mp4",
+      "sha256": "d2839c6ad1a6096143aa328fa20f1a23fb0ff6f6ba52b3e890e16d073d868390",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-intent-04",
+      "byte_length": 107443,
+      "defect_family": "none_seeded_intent_recovery_only",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip04.mp4",
+      "sha256": "041d314c18f02da04964e3772ca63a56534645c91ff9de681b6fc1684c25b13e",
+      "split": "development",
+      "synthetic": true
+    }
+  ],
+  "benchmark_id": "fictional-intent-clips-v1",
+  "contract_version": "1.0.0",
+  "created_at": "2026-09-27T00:00:00Z",
+  "seed": 20260927
+}

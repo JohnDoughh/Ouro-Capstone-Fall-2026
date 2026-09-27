@@ -19,6 +19,7 @@ check: test
 	$(PYTHON) -m compileall -q ouro_eval_lab
 	$(PYTHON) scripts/check_public_boundary.py .
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_playable/manifest.json
+	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_audio/manifest.json
 
 clean:
 	rm -f data/lab.db

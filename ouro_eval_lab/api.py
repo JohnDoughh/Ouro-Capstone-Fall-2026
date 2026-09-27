@@ -16,6 +16,39 @@ from .store import connect, next_assignment, progress, save_annotation
 WEB_ROOT = Path(__file__).parent / "web"
 
 
+def parse_byte_range(header: str | None, size: int) -> tuple[int, int] | str | None:
+    """Parse a single ``bytes=`` range.
+
+    Returns ``None`` to serve the whole body (no header, or a form this lab
+    does not support, which RFC 9110 allows a server to ignore), an inclusive
+    ``(start, end)`` pair, or ``"unsatisfiable"`` for a range outside the body.
+    """
+    if not header:
+        return None
+    unit, _, spec = header.strip().partition("=")
+    if unit.strip().lower() != "bytes" or "," in spec:
+        return None
+    first, dash, last = spec.strip().partition("-")
+    if not dash or not (first.isdigit() or first == "") or not (last.isdigit() or last == ""):
+        return None
+    if first == "" and last == "":
+        return None
+    if size == 0:
+        return "unsatisfiable"
+    if first == "":
+        length = int(last)
+        if length == 0:
+            return "unsatisfiable"
+        return (max(size - length, 0), size - 1)
+    start = int(first)
+    if start >= size:
+        return "unsatisfiable"
+    end = size - 1 if last == "" else min(int(last), size - 1)
+    if end < start:
+        return None
+    return (start, end)
+
+
 class LabHandler(BaseHTTPRequestHandler):
     db_path: Path
 
@@ -74,13 +107,28 @@ class LabHandler(BaseHTTPRequestHandler):
                 body = target.read_bytes()
                 if len(body) != row["byte_length"] or hashlib.sha256(body).hexdigest() != row["sha256"]:
                     return self._json(409, {"error": "artifact integrity failure"})
-                self.send_response(200)
+                # Safari and iOS refuse to play <audio>/<video> unless the
+                # server answers byte-range requests. Integrity is always
+                # checked over the whole file before any slice is served.
+                span = parse_byte_range(self.headers.get("Range"), len(body))
+                if span == "unsatisfiable":
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{len(body)}")
+                    self.send_header("Content-Length", "0")
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    return None
+                chunk = body if span is None else body[span[0]:span[1] + 1]
+                self.send_response(200 if span is None else 206)
                 self.send_header("Content-Type", row["mime_type"] or mimetypes.guess_type(target.name)[0] or "application/octet-stream")
-                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Content-Length", str(len(chunk)))
+                self.send_header("Accept-Ranges", "bytes")
+                if span is not None:
+                    self.send_header("Content-Range", f"bytes {span[0]}-{span[1]}/{len(body)}")
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")
                 self.end_headers()
-                return self.wfile.write(body)
+                return self.wfile.write(chunk)
             return self._static(parsed.path)
         except (ValueError, ContractError) as exc:
             return self._json(400, {"error": str(exc)})

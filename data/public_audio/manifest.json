@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "syn-tone-a",
+      "byte_length": 336044,
+      "defect_family": "audio_dropout",
+      "defect_present": false,
+      "mime_type": "audio/wav",
+      "modality": "audio",
+      "relative_path": "clean.wav",
+      "sha256": "a8ea9c518d49ca1f029a98bf777d4460c4f2c6a96b087ee732e4b3fe7d705aa7",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-tone-b",
+      "byte_length": 336044,
+      "defect_family": "audio_dropout",
+      "defect_present": true,
+      "mime_type": "audio/wav",
+      "modality": "audio",
+      "relative_path": "dropout.wav",
+      "sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+      "split": "development",
+      "synthetic": true
+    }
+  ],
+  "benchmark_id": "tone-dropout-public-synthetic-v1",
+  "contract_version": "1.0.0",
+  "created_at": "2026-09-27T00:00:00Z",
+  "seed": 20260927
+}

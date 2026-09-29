@@ -10,7 +10,8 @@ MODALITIES = {"image", "audio", "video", "text"}
 SPLITS = {"development", "calibration", "holdout"}
 EVALUATOR_VERDICTS = {"PASS", "HOLD"}
 HUMAN_VERDICTS = {"PASS", "HOLD", "UNSURE"}
-NATIVE_AVC_VERSION = "2.0.0-proposed.1"
+NATIVE_AVC_VERSION = "2.0.0-proposed.2"
+NATIVE_AVC_PREVIOUS_VERSION = "2.0.0-proposed.1"
 NATIVE_AVC_DECISIONS = {"approve", "hold", "reject"}
 NATIVE_AVC_PROVENANCE = {"canonical-approved-synthetic", "simulated-test-only"}
 NATIVE_AVC_MODALITIES = {
@@ -138,7 +139,7 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     for field in sorted(string_fields):
         if not isinstance(record[field], str):
             raise ContractError(f"native AVC {field} must be a string")
-    if record["schema_version"] != NATIVE_AVC_VERSION:
+    if record["schema_version"] not in {NATIVE_AVC_PREVIOUS_VERSION, NATIVE_AVC_VERSION}:
         raise ContractError("unsupported native AVC schema version")
     if record["audience"] != "sponsor-review-only" or record["import_ready"] is not False:
         raise ContractError("native AVC output must remain sponsor-review-only and not import-ready")
@@ -161,13 +162,22 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
     if any(not isinstance(value, str) or value not in NATIVE_AVC_MODALITY_STATES
            for value in modalities.values()):
         raise ContractError("native AVC modality states must be covered, failed, or inconclusive")
-    if record["defect_assessment"] not in {"unassessed", "inconclusive"}:
-        raise ContractError("native AVC defect_assessment must be unassessed or inconclusive")
+    allowed_assessments = {"unassessed", "inconclusive"}
+    if record["schema_version"] == NATIVE_AVC_VERSION:
+        allowed_assessments.add("detected_failure")
+    if record["defect_assessment"] not in allowed_assessments:
+        raise ContractError("native AVC defect_assessment is unsupported for this version")
     if record["coverage"] == "complete" and "inconclusive" in modalities.values():
         raise ContractError("complete native AVC coverage cannot contain inconclusive modalities")
-    expected_assessment = "inconclusive" if record["coverage"] == "incomplete" else "unassessed"
+    failed = "failed" in modalities.values()
+    if record["schema_version"] == NATIVE_AVC_VERSION and failed:
+        expected_assessment = "detected_failure"
+        if record["delivery_decision"] == "approve":
+            raise ContractError("native AVC failed modality cannot have approve delivery decision")
+    else:
+        expected_assessment = "inconclusive" if record["coverage"] == "incomplete" else "unassessed"
     if record["defect_assessment"] != expected_assessment:
-        raise ContractError("native AVC defect_assessment contradicts coverage")
+        raise ContractError("native AVC defect_assessment contradicts modality failure or coverage")
     if record["probability"] is not None or record["probability_status"] != "unavailable":
         raise ContractError("native AVC probability must remain null/unavailable")
     if record["probability_reason"] != "PROBABILITY_NOT_REPORTED":

@@ -63,15 +63,28 @@ does not provide a calibrated final probability. Converting those fields into
 v1 `PASS`/`HOLD` plus a fabricated probability is prohibited.
 
 A separate inspection-only validator accepts sponsor-sanitized
-`2.0.0-proposed.1` records with:
+`2.0.0-proposed.2` records with:
 
 - exact media SHA-256 and byte length;
 - anonymous evaluator alias `evaluator-01`;
 - native `approve`/`hold`/`reject` delivery decision;
 - complete/incomplete evidence coverage;
 - the five controlled modality states;
+- `detected_failure` when any native modality is `failed`, including when
+  coverage is also incomplete; otherwise `inconclusive` for incomplete
+  coverage and `unassessed` for complete coverage;
 - `probability: null` with `PROBABILITY_NOT_REPORTED`;
 - allow-listed provenance/evidence codes only.
+
+`2.0.0-proposed.1` remains readable under its original rules; it is not
+reinterpreted as `.2`. Producers using the failure-preserving rule must emit
+`.2`. A failed modality cannot accompany an `approve` delivery decision.
+Unsupported or unfinished checks remain `inconclusive` modalities and require
+incomplete coverage; they are not silently promoted to covered. The original
+controlled evidence codes, including `COVERAGE_INCOMPLETE` when applicable,
+remain in the inspected record. `detected_failure` describes a native check
+result, not an independently established human defect label or a calibrated
+probability. This is a sponsor-review inspection contract, not a lab importer.
 
 This inspection path does not feed `benchmark`, Brier score, ECE, false-PASS,
 false-HOLD, or defect confusion metrics. Those analyses require independently

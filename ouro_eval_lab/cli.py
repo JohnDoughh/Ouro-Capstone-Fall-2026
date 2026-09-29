@@ -86,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         _write(args.out, json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.out}")
     elif args.command == "export":
+        initialize(args.db)
         with connect(args.db) as db:
             _write(args.out, export_annotations(db, args.format))
         print(f"wrote {args.out}")

@@ -45,13 +45,19 @@ The command:
 6. marks calibration and defect-confusion analysis ineligible until independent
    reference labels exist.
 
-The validator rejects contradictory coverage rather than guessing which field
-to trust. Complete coverage cannot contain an inconclusive modality and has
-an unassessed defect mapping. Incomplete coverage has an inconclusive defect
-assessment, including when all modality states are covered but other completion
-evidence is unavailable. A failed modality is preserved as failed; it does not
-become a human defect label. Any native delivery decision can coexist with
-incomplete coverage.
+The current `2.0.0-proposed.2` validator rejects contradictory coverage rather
+than guessing which field to trust. Complete coverage cannot contain an
+inconclusive modality. Any failed modality requires `detected_failure`, even
+when another check is inconclusive and coverage is incomplete. Without a failed
+modality, incomplete coverage requires `inconclusive`; complete coverage
+requires `unassessed`. Incomplete coverage can reflect unfinished provider or
+specialist evidence even when every modality is covered. Unsupported checks
+remain inconclusive; their original state and `COVERAGE_INCOMPLETE` evidence
+code are preserved. A failed modality also forbids an `approve` delivery
+decision. `detected_failure` is a native check assessment, never a human defect
+label. Without failure, any native delivery decision can coexist with
+incomplete coverage. Older `2.0.0-proposed.1` records remain readable under
+their original meaning, but are not silently upgraded to `.2`.
 
 Byte length must be a positive JSON integer, not a boolean. Malformed field
 types and evidence-code lists are rejected as contract errors. These checks

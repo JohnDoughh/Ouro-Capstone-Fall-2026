@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "syn-vis-a",
+      "byte_length": 28020,
+      "defect_family": "product_visual_continuity",
+      "defect_present": false,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip_a.mp4",
+      "sha256": "d1f68f87b9ebadbb6a3bead1abfea5680d486ad4260b2320071bd7364d596490",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "artifact_id": "syn-vis-b",
+      "byte_length": 27985,
+      "defect_family": "product_visual_continuity",
+      "defect_present": true,
+      "mime_type": "video/mp4",
+      "modality": "video",
+      "relative_path": "clip_b.mp4",
+      "sha256": "4416c107e44b3e68e75578f4abde1c1e79244aa37347312c40fd85a55efd55d3",
+      "split": "development",
+      "synthetic": true
+    }
+  ],
+  "benchmark_id": "fictional-visual-continuity-v1",
+  "contract_version": "1.0.0",
+  "created_at": "2026-09-30T00:00:00Z",
+  "seed": 20260930
+}

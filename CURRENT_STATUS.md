@@ -26,6 +26,7 @@ The implementation commit has passing CI for unit tests, compilation, public-bou
 - Brier score, expected calibration error, risk-versus-coverage, and basic Cohen's kappa.
 - JSON and CSV annotation exports.
 - Playable fictional MP4 practice fixtures with byte-bound manifests.
+- A blinded fictional clean/seeded-defect visual pair whose source frames are standard-library reproducible and whose truth is held apart from the rater-facing IDs.
 - A separately versioned native AVC inspection validator/CLI that preserves native decisions and explicitly excludes unavailable probability from calibration.
 - Data contract, threat model, research protocol, and independent-rerun guide.
 - Docker, Compose, Make, tests, CI scaffolding, and an idempotent empty-volume startup path.

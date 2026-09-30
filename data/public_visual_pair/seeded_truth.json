@@ -1,0 +1,37 @@
+{
+  "benchmark_id": "fictional-visual-continuity-v1",
+  "defect": "During the whole third shot (the bottle sliding toward the bag), the bottle shows 2 white grip bands instead of the 3 it shows in every other shot. The bands are re-spaced evenly, so there is no visible gap.",
+  "defect_family": "product_visual_continuity",
+  "defect_window_frames": [
+    72,
+    108
+  ],
+  "defect_window_seconds": [
+    6.0,
+    9.0
+  ],
+  "defective_artifact_id": "syn-vis-b",
+  "defective_sha256": "4416c107e44b3e68e75578f4abde1c1e79244aa37347312c40fd85a55efd55d3",
+  "encoder": {
+    "codec": "libx264",
+    "crf": 18,
+    "ffmpeg": "9.0.2",
+    "preset": "medium"
+  },
+  "expected_timestamp_entry": "00:06-00:09",
+  "seed": 20260930,
+  "source_frames": {
+    "fps": 12,
+    "frames": 144,
+    "height": 360,
+    "pix_fmt": "rgb24",
+    "renderer_version": "1",
+    "sha256": {
+      "clip_a.mp4": "69975a9e9732b3acf55736e7159b2cb784008ed55fcac230dfd560bbddfd5802",
+      "clip_b.mp4": "e99bf602324322c1276657efa1d6a06699f8d2fe2ee7dda303dc80d6d05f2bd4"
+    },
+    "width": 640
+  },
+  "synthetic": true,
+  "window_is_half_open": true
+}

@@ -21,6 +21,7 @@ check: test
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_playable/manifest.json
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_audio/manifest.json
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_intent/manifest.json
+	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_visual_pair/manifest.json
 
 clean:
 	rm -f data/lab.db

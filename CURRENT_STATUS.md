@@ -20,7 +20,7 @@ The implementation commit has passing CI for unit tests, compilation, public-bou
 - Anonymous evaluator-output contract.
 - Randomized assignments and repeat-item generation.
 - PASS, HOLD, and UNSURE human judgments.
-- Confidence, generic reason codes, optional notes, and start/completion times.
+- Five-point human confidence, 0-to-3 severity, generic reason codes, optional notes, and start/completion times.
 - Append-only raw annotation behavior.
 - False PASS and false HOLD calculations with Wilson intervals.
 - Brier score, expected calibration error, risk-versus-coverage, and basic Cohen's kappa.
@@ -60,14 +60,16 @@ The original JSON placeholders are not full video. A public-safe fictional MP4 p
 
 ### Annotation depth
 
-The current interface captures only:
+The current interface captures:
 
 - PASS, HOLD, or UNSURE;
-- confidence;
+- confidence on a five-point scale;
+- severity from 0 (none) to 3 (severe);
+- optional defect timestamp(s);
 - four generic reason groups;
 - an optional note.
 
-It does not yet capture the required final ontology, including defect timestamps, perceptual severity, commercial-meaning recovery, suspected failure origin, rubric version, or structured evidence.
+It does not yet capture the rest of the required final ontology, including commercial-meaning recovery, suspected failure origin, rubric version, or structured evidence. Existing annotations from before timestamp capture are retained with unknown timestamps and identified as legacy confidence in exports.
 
 ### Adjudication
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ouro Evaluation Lab</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/annotation-scales.css">
 </head>
 <body>
   <header>
@@ -32,7 +33,20 @@
             <label><input type="radio" name="verdict" value="HOLD"><span>HOLD<small>Target defect present</small></span></label>
             <label><input type="radio" name="verdict" value="UNSURE"><span>UNSURE<small>Cannot decide defensibly</small></span></label>
           </div></fieldset>
-          <label class="range">Confidence <output id="confidence-output">75%</output><input id="confidence" type="range" min="0" max="100" value="75"></label>
+          <fieldset class="scale-field"><legend>Confidence</legend><div class="scale-options confidence-options">
+            <label><input type="radio" name="confidence" value="1" aria-label="Confidence 1, very low" required><span><b>1</b><small>Very low</small></span></label>
+            <label><input type="radio" name="confidence" value="2" aria-label="Confidence 2, low" required><span><b>2</b><small>Low</small></span></label>
+            <label><input type="radio" name="confidence" value="3" aria-label="Confidence 3, moderate" required><span><b>3</b><small>Moderate</small></span></label>
+            <label><input type="radio" name="confidence" value="4" aria-label="Confidence 4, high" required><span><b>4</b><small>High</small></span></label>
+            <label><input type="radio" name="confidence" value="5" aria-label="Confidence 5, very high" required><span><b>5</b><small>Very high</small></span></label>
+          </div></fieldset>
+          <fieldset class="scale-field"><legend>Severity</legend><div class="scale-options severity-options">
+            <label><input type="radio" name="severity" value="0" aria-label="Severity 0, none" required><span><b>0</b><small>None</small></span></label>
+            <label><input type="radio" name="severity" value="1" aria-label="Severity 1, minor" required><span><b>1</b><small>Minor</small></span></label>
+            <label><input type="radio" name="severity" value="2" aria-label="Severity 2, moderate" required><span><b>2</b><small>Moderate</small></span></label>
+            <label><input type="radio" name="severity" value="3" aria-label="Severity 3, severe" required><span><b>3</b><small>Severe</small></span></label>
+          </div></fieldset>
+          <label>Defect timestamp(s)<input id="defect-timestamps" name="defect_timestamps" maxlength="240" placeholder="00:04–00:05; 00:08"></label>
           <fieldset><legend>Reason codes</legend><div class="checks">
             <label><input type="checkbox" name="reason" value="visual_integrity">Visual integrity</label>
             <label><input type="checkbox" name="reason" value="audio_integrity">Audio integrity</label>

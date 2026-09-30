@@ -9,13 +9,30 @@ from pathlib import Path
 from ouro_eval_lab.cli import bootstrap_demo
 from ouro_eval_lab.contracts import (
     ContractError, NATIVE_AVC_PREVIOUS_VERSION, NATIVE_AVC_VERSION,
-    validate_evaluator_output, validate_native_avc_output,
+    validate_annotation_payload, validate_evaluator_output, validate_native_avc_output,
 )
 from ouro_eval_lab.fixtures import generate
 from ouro_eval_lab.runner import inspect_native_avc, load_json, run_benchmark, verify_manifest
 
 
 class ContractTests(unittest.TestCase):
+    def test_annotation_requires_integer_confidence_and_severity_scales(self):
+        payload = {
+            "verdict": "HOLD", "confidence": 4, "severity": 2,
+            "reason_codes": ["audio_integrity"], "note": "",
+        }
+        validate_annotation_payload(payload)
+        for field, value in (("confidence", 0), ("confidence", 6), ("confidence", 3.5),
+                             ("severity", -1), ("severity", 4), ("severity", True)):
+            invalid = {**payload, field: value}
+            with self.subTest(field=field, value=value), self.assertRaises(ContractError):
+                validate_annotation_payload(invalid)
+        with self.assertRaisesRegex(ContractError, "missing fields.*severity"):
+            validate_annotation_payload({key: value for key, value in payload.items() if key != "severity"})
+        for timestamps in ([], "x" * 241):
+            with self.subTest(timestamps=timestamps), self.assertRaisesRegex(ContractError, "defect_timestamps"):
+                validate_annotation_payload({**payload, "defect_timestamps": timestamps})
+
     def test_bootstrap_is_idempotent_from_empty_data_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "fixtures"

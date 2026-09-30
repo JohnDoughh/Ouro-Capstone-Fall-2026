@@ -156,7 +156,7 @@ class LabHandler(BaseHTTPRequestHandler):
 
     def _static(self, path: str) -> None:
         name = "index.html" if path == "/" else path.lstrip("/")
-        if name not in {"index.html", "app.js", "styles.css"}:
+        if name not in {"index.html", "app.js", "styles.css", "annotation-scales.css"}:
             return self._json(404, {"error": "not found"})
         target = WEB_ROOT / name
         body = target.read_bytes()

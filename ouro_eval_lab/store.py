@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS assignments (
 CREATE TABLE IF NOT EXISTS annotations (
   annotation_id TEXT PRIMARY KEY, assignment_id TEXT UNIQUE NOT NULL, rater_id TEXT NOT NULL,
   artifact_sha256 TEXT NOT NULL, verdict TEXT NOT NULL, confidence REAL NOT NULL,
-  reason_codes TEXT NOT NULL, note TEXT NOT NULL, started_at TEXT NOT NULL,
+    confidence_scale TEXT NOT NULL DEFAULT '1-5', severity INTEGER, defect_timestamps TEXT,
+    reason_codes TEXT NOT NULL, note TEXT NOT NULL, started_at TEXT NOT NULL,
   completed_at TEXT NOT NULL, FOREIGN KEY(assignment_id) REFERENCES assignments(assignment_id)
 );
 CREATE TABLE IF NOT EXISTS adjudications (
@@ -46,6 +47,15 @@ def connect(path: Path | str) -> sqlite3.Connection:
 def initialize(path: Path | str) -> None:
     with connect(path) as db:
         db.executescript(SCHEMA)
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(annotations)")}
+        if "confidence_scale" not in columns:
+            db.execute(
+                "ALTER TABLE annotations ADD COLUMN confidence_scale TEXT NOT NULL DEFAULT 'legacy-0-1'"
+            )
+        if "severity" not in columns:
+            db.execute("ALTER TABLE annotations ADD COLUMN severity INTEGER")
+        if "defect_timestamps" not in columns:
+            db.execute("ALTER TABLE annotations ADD COLUMN defect_timestamps TEXT")
 
 
 def ingest(path: Path | str, manifest: dict, fixture_root: Path) -> int:
@@ -118,10 +128,15 @@ def save_annotation(db: sqlite3.Connection, assignment_id: str, rater_id: str, p
     completed_at = datetime.now(timezone.utc).isoformat()
     annotation_id = secrets.token_urlsafe(12)
     db.execute(
-        """INSERT INTO annotations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO annotations
+           (annotation_id, assignment_id, rater_id, artifact_sha256, verdict, confidence,
+            confidence_scale, severity, defect_timestamps, reason_codes, note, started_at, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             annotation_id, assignment_id, rater_id, assignment["artifact_sha256"], payload["verdict"],
-            payload["confidence"], json.dumps(payload["reason_codes"]), payload.get("note", ""),
+            payload["confidence"], "1-5", payload["severity"],
+            payload.get("defect_timestamps", "").strip(),
+            json.dumps(payload["reason_codes"]), payload.get("note", ""),
             assignment["started_at"], completed_at,
         ),
     )

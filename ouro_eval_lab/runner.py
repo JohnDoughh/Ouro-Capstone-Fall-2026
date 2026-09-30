@@ -6,7 +6,7 @@ import io
 import json
 from pathlib import Path
 
-from .contracts import validate_evaluator_output, validate_manifest, validate_native_avc_output
+from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output
 from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
 
@@ -117,6 +117,7 @@ def inspect_native_avc(manifest_path: Path, evaluation_path: Path) -> dict:
 
 EXPORT_FIELDS = [
     "annotation_id", "rater_id", "artifact_sha256", "verdict", "confidence",
+    "confidence_scale", "severity", "defect_timestamps",
     "reason_codes", "note", "started_at", "completed_at",
 ]
 
@@ -131,7 +132,11 @@ def export_annotations(db, format_name: str = "json") -> str:
             raise ValueError(f"export contains unknown fields: {unknown}")
         row["reason_codes"] = json.loads(row["reason_codes"])
     if format_name == "json":
-        return json.dumps({"contract_version": "1.0.0", "annotations": rows}, indent=2, sort_keys=True) + "\n"
+        return json.dumps({
+            "contract_version": "1.0.0",
+            "annotation_contract_version": ANNOTATION_CONTRACT_VERSION,
+            "annotations": rows,
+        }, indent=2, sort_keys=True) + "\n"
     if format_name == "csv":
         stream = io.StringIO()
         writer = csv.DictWriter(stream, fieldnames=EXPORT_FIELDS)

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 CONTRACT_VERSION = "1.0.0"
+ANNOTATION_CONTRACT_VERSION = "2.1.0"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MODALITIES = {"image", "audio", "video", "text"}
 SPLITS = {"development", "calibration", "holdout"}
@@ -202,15 +203,21 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
 
 
 def validate_annotation_payload(record: dict[str, Any]) -> None:
-    allowed = {"verdict", "confidence", "reason_codes", "note"}
+    allowed = {"verdict", "confidence", "severity", "defect_timestamps", "reason_codes", "note"}
     unknown = sorted(record.keys() - allowed)
     if unknown:
         raise ContractError(f"annotation contains unknown fields: {', '.join(unknown)}")
-    _require(record, {"verdict", "confidence", "reason_codes"}, "annotation")
+    _require(record, {"verdict", "confidence", "severity", "reason_codes"}, "annotation")
     if record["verdict"] not in HUMAN_VERDICTS:
         raise ContractError("annotation verdict must be PASS, HOLD, or UNSURE")
-    if not isinstance(record["confidence"], (int, float)) or not 0 <= record["confidence"] <= 1:
-        raise ContractError("annotation confidence must be between 0 and 1")
+    if type(record["confidence"]) is not int or not 1 <= record["confidence"] <= 5:
+        raise ContractError("annotation confidence must be an integer from 1 to 5")
+    if type(record["severity"]) is not int or not 0 <= record["severity"] <= 3:
+        raise ContractError("annotation severity must be an integer from 0 to 3")
+    if "defect_timestamps" in record and (
+        not isinstance(record["defect_timestamps"], str) or len(record["defect_timestamps"]) > 240
+    ):
+        raise ContractError("defect_timestamps must be a string of at most 240 characters")
     if not isinstance(record["reason_codes"], list) or not all(isinstance(x, str) for x in record["reason_codes"]):
         raise ContractError("reason_codes must be a string list")
     if len(str(record.get("note", ""))) > 500:

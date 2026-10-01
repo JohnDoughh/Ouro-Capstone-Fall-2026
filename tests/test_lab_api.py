@@ -1,3 +1,4 @@
+import hashlib
 import json
 import subprocess
 import sys
@@ -75,6 +76,49 @@ class LabApiTests(unittest.TestCase):
             )
             self.assertNotEqual(command.returncode, 0)
             self.assertFalse(db_path.exists())
+
+    def test_media_endpoint_rejects_same_length_tampering_and_missing_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / "synthetic.txt"
+            original = b"correct!!"
+            fixture.write_bytes(original)
+            db_path = root / "lab.db"
+            ingest(db_path, {"artifacts": [{
+                "sha256": hashlib.sha256(original).hexdigest(),
+                "artifact_id": "synthetic-media",
+                "relative_path": fixture.name,
+                "byte_length": len(original),
+                "mime_type": "text/plain",
+                "modality": "text",
+                "split": "practice",
+                "defect_family": "synthetic",
+                "defect_present": 1,
+                "synthetic": 1,
+            }]}, root)
+            handler = type("TestHandler", (LabHandler,), {
+                "db_path": db_path,
+                "log_message": lambda *args: None,
+            })
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                base = f"http://127.0.0.1:{server.server_address[1]}"
+                with urllib.request.urlopen(f"{base}/api/next?rater=synthetic-rater") as response:
+                    media_url = json.load(response)["assignment"]["media_url"]
+                fixture.write_bytes(b"changed!!")  # Same length, different SHA-256.
+                with self.assertRaises(urllib.error.HTTPError) as tampered:
+                    urllib.request.urlopen(base + media_url)
+                self.assertEqual(tampered.exception.code, 409)
+                fixture.unlink()
+                with self.assertRaises(urllib.error.HTTPError) as missing:
+                    urllib.request.urlopen(base + media_url)
+                self.assertEqual(missing.exception.code, 404)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
 
 if __name__ == "__main__":

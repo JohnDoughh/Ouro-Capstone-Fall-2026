@@ -16,6 +16,19 @@ from ouro_eval_lab.runner import inspect_native_avc, load_json, run_benchmark, v
 
 
 class ContractTests(unittest.TestCase):
+    def test_annotation_reason_codes_match_the_controlled_ui_vocabulary(self):
+        payload = {
+            "verdict": "HOLD", "confidence": 4, "severity": 2,
+            "reason_codes": [], "note": "",
+        }
+        validate_annotation_payload(payload)
+        for code in ("visual_integrity", "audio_integrity", "temporal_integrity", "intent_integrity"):
+            with self.subTest(code=code):
+                validate_annotation_payload({**payload, "reason_codes": [code]})
+        for codes in (["unknown_reason"], ["visual_integrity", "visual_integrity"]):
+            with self.subTest(codes=codes), self.assertRaisesRegex(ContractError, "reason_codes"):
+                validate_annotation_payload({**payload, "reason_codes": codes})
+
     def test_annotation_requires_integer_confidence_and_severity_scales(self):
         payload = {
             "verdict": "HOLD", "confidence": 4, "severity": 2,

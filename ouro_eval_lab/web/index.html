@@ -17,7 +17,8 @@
       <p class="kicker">Independent annotation</p>
       <h2>Enter a pseudonymous rater ID</h2>
       <p>Do not enter your name or email. Evaluator outputs, truth labels, defect families, and repeat markers remain blinded.</p>
-      <form id="signin-form"><input id="rater" pattern="[A-Za-z0-9_\-]+" maxlength="80" placeholder="rater-a" required><button>Begin</button></form>
+      <form id="signin-form"><input id="rater" placeholder="rater-a" required><button>Begin</button></form>
+      <p id="signin-error" class="error" role="alert"></p>
     </section>
     <section id="workspace" class="workspace hidden">
       <article class="card media-card">
@@ -55,7 +56,9 @@
           </div></fieldset>
           <label>Optional note<textarea id="note" maxlength="500" rows="3"></textarea></label>
           <p id="error" class="error" role="alert"></p>
-          <button id="submit">Submit judgment</button>
+          <button id="retry-load" type="button" class="hidden">Retry loading assignment</button>
+          <button id="retry-save" type="button" class="hidden">Retry the same judgment</button>
+          <button id="submit" disabled>Submit judgment</button>
         </form>
       </aside>
     </section>

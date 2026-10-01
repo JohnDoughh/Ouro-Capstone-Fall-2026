@@ -59,6 +59,8 @@ Run all checks:
 make check
 ```
 
+Aggregate agreement is not exposed by the annotation web server during collection. A person with local access to the lab database can generate the offline report after the appropriate review stage; this command does not establish participant-release authority.
+
 ## Demonstration workflow
 
 1. `seed` generates the same synthetic artifacts from the same seed.
@@ -80,6 +82,7 @@ python -m ouro_eval_lab.cli ingest --db data/lab.db --manifest data/fixtures/man
 python -m ouro_eval_lab.cli serve --db data/lab.db --port 8080
 python -m ouro_eval_lab.cli benchmark --manifest data/fixtures/manifest.json --outputs data/fixtures/evaluator_outputs.json --out data/exports/report.json
 python -m ouro_eval_lab.cli export --db data/lab.db --out data/exports/annotations.json
+python -m ouro_eval_lab.cli agreement --db data/lab.db --out data/exports/agreement.json
 python -m ouro_eval_lab.cli inspect-avc --manifest path/to/manifest.json --evaluation path/to/evaluation.json --out data/exports/native-avc-inspection.json
 ```
 

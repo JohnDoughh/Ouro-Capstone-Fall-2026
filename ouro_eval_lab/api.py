@@ -3,17 +3,34 @@ from __future__ import annotations
 import json
 import hashlib
 import mimetypes
+import sqlite3
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .contracts import ContractError, validate_annotation_payload
-from .runner import agreement_report
 from .store import connect, next_assignment, progress, save_annotation
 
 
 WEB_ROOT = Path(__file__).parent / "web"
+
+
+class ConflictingAnnotation(ValueError):
+    """The assignment has a saved judgment different from this retry."""
+
+
+def _same_saved_annotation(row: sqlite3.Row, payload: dict) -> bool:
+    """Compare the stored normalized judgment, never replacing its original evidence."""
+    return (
+        row["confidence_scale"] == "1-5"
+        and row["verdict"] == payload["verdict"]
+        and row["confidence"] == payload["confidence"]
+        and row["severity"] == payload["severity"]
+        and (row["defect_timestamps"] or "") == payload.get("defect_timestamps", "").strip()
+        and json.loads(row["reason_codes"]) == payload["reason_codes"]
+        and row["note"] == payload.get("note", "")
+    )
 
 
 def parse_byte_range(header: str | None, size: int) -> tuple[int, int] | str | None:
@@ -85,9 +102,6 @@ class LabHandler(BaseHTTPRequestHandler):
                     for hidden in ("relative_path", "fixture_root", "sha256"):
                         assignment.pop(hidden, None)
                 return self._json(200, {"assignment": assignment, "progress": state})
-            if parsed.path == "/api/agreement":
-                with connect(self.db_path) as db:
-                    return self._json(200, agreement_report(db))
             if parsed.path.startswith("/api/media/"):
                 assignment_id = parsed.path.rsplit("/", 1)[-1]
                 rater = self._rater(query)
@@ -146,11 +160,50 @@ class LabHandler(BaseHTTPRequestHandler):
             if length <= 0 or length > 8192:
                 raise ValueError("invalid request size")
             payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ContractError("annotation must be one JSON object")
             validate_annotation_payload(payload)
+            if not isinstance(payload.get("note", ""), str):
+                raise ContractError("note must be a string")
             assignment_id = parsed.path.rsplit("/", 1)[-1]
             with connect(self.db_path) as db:
-                result = save_annotation(db, assignment_id, rater, payload)
-            return self._json(HTTPStatus.CREATED, result)
+                # An aborted browser request does not prove its earlier write
+                # rolled back. Serialize the initial write and an exact retry
+                # against the same assignment before returning any receipt.
+                db.execute("BEGIN IMMEDIATE")
+                try:
+                    result = save_annotation(db, assignment_id, rater, payload)
+                    status = HTTPStatus.CREATED
+                except ValueError as exc:
+                    if str(exc) != "assignment already completed":
+                        raise
+                    saved = db.execute(
+                        """SELECT annotation_id, completed_at, verdict, confidence,
+                                  confidence_scale, severity, defect_timestamps,
+                                  reason_codes, note FROM annotations
+                           WHERE assignment_id=? AND rater_id=?""",
+                        (assignment_id, rater),
+                    ).fetchone()
+                    if saved is None or not _same_saved_annotation(saved, payload):
+                        raise ConflictingAnnotation(
+                            "assignment already completed with a different annotation"
+                        ) from exc
+                    result = {
+                        "annotation_id": saved["annotation_id"],
+                        "completed_at": saved["completed_at"],
+                        "replayed": True,
+                    }
+                    status = HTTPStatus.OK
+            return self._json(status, result)
+        except ConflictingAnnotation as exc:
+            return self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+        except sqlite3.OperationalError:
+            # A lock, I/O error, or interrupted transaction has an ambiguous
+            # outcome from the client's perspective. Only the same frozen
+            # payload may be retried; never tell the browser no write occurred.
+            return self._json(HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "save status unknown; retry the exact same annotation"
+            })
         except (ValueError, ContractError, json.JSONDecodeError) as exc:
             return self._json(400, {"error": str(exc)})
 

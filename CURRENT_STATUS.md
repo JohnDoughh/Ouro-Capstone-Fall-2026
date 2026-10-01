@@ -111,7 +111,7 @@ Do not collect real participant data until these are resolved:
 - FIU human-subjects determination;
 - named access and authorization;
 - role separation;
-- aggregate-result access control;
+- authenticated post-freeze aggregate-result access control (the web aggregate endpoint is disabled during collection, but this does not replace the remaining access gates);
 - access logging;
 - incident contact;
 - retention and deletion schedule;

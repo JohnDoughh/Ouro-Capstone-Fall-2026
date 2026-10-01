@@ -11,6 +11,9 @@ MODALITIES = {"image", "audio", "video", "text"}
 SPLITS = {"development", "calibration", "holdout"}
 EVALUATOR_VERDICTS = {"PASS", "HOLD"}
 HUMAN_VERDICTS = {"PASS", "HOLD", "UNSURE"}
+HUMAN_REASON_CODES = {
+    "visual_integrity", "audio_integrity", "temporal_integrity", "intent_integrity",
+}
 NATIVE_AVC_VERSION = "2.0.0-proposed.2"
 NATIVE_AVC_PREVIOUS_VERSION = "2.0.0-proposed.1"
 NATIVE_AVC_DECISIONS = {"approve", "hold", "reject"}
@@ -220,5 +223,9 @@ def validate_annotation_payload(record: dict[str, Any]) -> None:
         raise ContractError("defect_timestamps must be a string of at most 240 characters")
     if not isinstance(record["reason_codes"], list) or not all(isinstance(x, str) for x in record["reason_codes"]):
         raise ContractError("reason_codes must be a string list")
+    if any(code not in HUMAN_REASON_CODES for code in record["reason_codes"]):
+        raise ContractError("reason_codes contain an unsupported code")
+    if len(set(record["reason_codes"])) != len(record["reason_codes"]):
+        raise ContractError("reason_codes must be unique")
     if len(str(record.get("note", ""))) > 500:
         raise ContractError("note must be at most 500 characters")

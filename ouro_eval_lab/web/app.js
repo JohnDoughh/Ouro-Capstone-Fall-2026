@@ -1,4 +1,4 @@
-const state = {rater: null, assignment: null};
+const state = {rater: null, assignment: null, loadEpoch: 0};
 const $ = id => document.getElementById(id);
 const REQUEST_DEADLINE_MS = 12000;
 
@@ -21,6 +21,7 @@ async function withDeadline(operation, message) {
 }
 
 function clearAssignment() {
+  state.loadEpoch++;
   state.assignment = null;
   $('submit').disabled = true;
   $('modality').textContent = '';
@@ -76,6 +77,7 @@ async function loadNext() {
   // A successful submission has already completed the previous assignment.
   // Never leave it actionable while the next request is pending or failed.
   clearAssignment();
+  const loadEpoch = state.loadEpoch;
   $('retry-load').classList.add('hidden');
   $('error').textContent = '';
   try {
@@ -83,6 +85,7 @@ async function loadNext() {
       const response = await fetch(`/api/next?rater=${encodeURIComponent(state.rater)}`, {signal});
       return {response, body: await response.json()};
     }, 'Timed out loading the next assignment');
+    if (state.loadEpoch !== loadEpoch) return;
     if (!response.ok) throw new Error(body.error || 'Unable to load the next assignment');
     $('progress').textContent = `${body.progress.completed} / ${body.progress.total} complete`;
     if (!body.assignment) {
@@ -91,15 +94,66 @@ async function loadNext() {
       return;
     }
     await renderMedia(body.assignment);
+    if (state.loadEpoch !== loadEpoch) throw new Error('Assignment media load was interrupted');
     $('modality').textContent = body.assignment.modality;
     $('artifact-id').textContent = body.assignment.artifact_id;
     state.assignment = body.assignment;
     $('submit').disabled = false;
   } catch (error) {
+    if (state.loadEpoch !== loadEpoch) return;
     clearAssignment();
     $('error').textContent = error.message || 'Unable to load the next assignment';
     $('retry-load').classList.remove('hidden');
   }
+}
+
+async function waitForPlayableMedia(element, item, readyEvent) {
+  const loadEpoch = state.loadEpoch;
+  await withDeadline(signal => new Promise((resolve, reject) => {
+    let finished = false;
+    const cleanup = () => {
+      element.removeEventListener(readyEvent, onReady);
+      element.removeEventListener('error', onError);
+      signal.removeEventListener('abort', onAbort);
+    };
+    const onLateError = () => {
+      if (state.loadEpoch !== loadEpoch) return;
+      clearAssignment();
+      $('error').textContent = 'Assignment media stopped loading; retry before judging';
+      $('retry-load').classList.remove('hidden');
+    };
+    const onError = () => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      reject(new Error('Unable to load assignment media'));
+    };
+    const onAbort = () => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      element.removeAttribute('src');
+      if (typeof element.load === 'function') element.load();
+      reject(new Error('Timed out loading assignment media'));
+    };
+    const onReady = async () => {
+      try {
+        if (typeof element.decode === 'function') await element.decode();
+        if (finished || signal.aborted) return;
+        finished = true;
+        cleanup();
+        element.addEventListener('error', onLateError);
+        resolve();
+      } catch {
+        onError();
+      }
+    };
+    element.addEventListener(readyEvent, onReady);
+    element.addEventListener('error', onError);
+    signal.addEventListener('abort', onAbort, {once: true});
+    element.src = item.media_url;
+    $('media').append(element);
+  }), 'Timed out loading assignment media');
 }
 
 async function renderMedia(item) {
@@ -107,22 +161,19 @@ async function renderMedia(item) {
   media.replaceChildren();
   if (item.mime_type.startsWith('image/')) {
     const img = document.createElement('img');
-    img.src = item.media_url;
     img.alt = 'Synthetic artifact to annotate';
-    media.append(img);
+    await waitForPlayableMedia(img, item, 'load');
   } else if (item.mime_type.startsWith('audio/')) {
     const audio = document.createElement('audio');
     audio.controls = true;
-    audio.src = item.media_url;
-    media.append(audio);
+    await waitForPlayableMedia(audio, item, 'loadedmetadata');
   } else if (item.mime_type.startsWith('video/')) {
     const video = document.createElement('video');
     video.controls = true;
     video.playsInline = true;
     video.preload = 'metadata';
-    video.src = item.media_url;
     video.setAttribute('aria-label', 'Synthetic video artifact to annotate');
-    media.append(video);
+    await waitForPlayableMedia(video, item, 'loadedmetadata');
   } else {
     const pre = document.createElement('pre');
     pre.textContent = 'Loading synthetic artifact…';

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const appSource = fs.readFileSync(path.join(__dirname, '..', 'ouro_eval_lab', 'web', 'app.js'), 'utf8');
 
-function harness(replies) {
+function harness(replies, mediaModes = []) {
   const elements = new Map();
   const requests = [];
   const timers = [];
@@ -33,7 +33,29 @@ function harness(replies) {
     document: {
       getElementById: element,
       querySelectorAll: () => [],
-      createElement: tag => ({tag, setAttribute() {}}),
+      createElement: tag => {
+        const listeners = new Map();
+        const node = {
+          tag, setAttribute() {}, removeAttribute() {}, load() {},
+          addEventListener(name, callback) {
+            if (!listeners.has(name)) listeners.set(name, new Set());
+            listeners.get(name).add(callback);
+          },
+          removeEventListener(name, callback) { listeners.get(name)?.delete(callback); },
+          emit(name) { for (const callback of [...(listeners.get(name) || [])]) callback(); },
+        };
+        Object.defineProperty(node, 'src', {set(value) {
+          node.source = value;
+          if (!['img', 'audio', 'video'].includes(tag)) return;
+          const mode = mediaModes.shift() || 'ready';
+          if (tag === 'img') node.decode = async () => {
+            if (mode === 'decode-error') throw new Error('decode failed');
+          };
+          if (mode === 'pending') return;
+          Promise.resolve().then(() => node.emit(mode === 'error' ? 'error' : tag === 'img' ? 'load' : 'loadedmetadata'));
+        }});
+        return node;
+      },
     },
     FormData: class { constructor(form) { this.form = form; } get(name) { return this.form.fields[name]; } },
     fetch: async (url, options) => {
@@ -169,4 +191,94 @@ test('pending next request times out to retry without enabling submission', asyn
   assert.equal(lab.assignment(), null);
   assert.equal(lab.element('submit').disabled, true);
   assert.equal(lab.element('retry-load').classList.contains('hidden'), false);
+});
+
+for (const [modality, mime] of [
+  ['image', 'image/png'], ['audio', 'audio/wav'], ['video', 'video/mp4'],
+]) {
+  test(`${modality} media must load before Submit is enabled`, async () => {
+    const mediaItem = {...item(`${modality}-a`), modality, mime_type: mime};
+    const lab = harness([next(mediaItem)], ['pending']);
+    const firstLoad = lab.signIn();
+    await flushAsync();
+    assert.equal(lab.assignment(), null);
+    assert.equal(lab.element('submit').disabled, true);
+    const node = lab.element('media').children[0];
+    assert.equal(node.source, mediaItem.media_url);
+    node.emit(modality === 'image' ? 'load' : 'loadedmetadata');
+    await firstLoad;
+    assert.equal(lab.assignment().assignment_id, mediaItem.assignment_id);
+    assert.equal(lab.element('submit').disabled, false);
+  });
+
+  test(`${modality} media error remains held and offers retry`, async () => {
+    const mediaItem = {...item(`${modality}-bad`), modality, mime_type: mime};
+    const lab = harness([next(mediaItem)], ['error']);
+    await lab.signIn();
+    assert.equal(lab.assignment(), null);
+    assert.equal(lab.element('submit').disabled, true);
+    assert.equal(lab.element('retry-load').classList.contains('hidden'), false);
+  });
+}
+
+test('late playable-media events cannot revive a timed-out assignment', async () => {
+  const mediaItem = {...item('video-pending'), modality: 'video', mime_type: 'video/mp4'};
+  const lab = harness([next(mediaItem)], ['pending']);
+  const firstLoad = lab.signIn();
+  await flushAsync();
+  const oldNode = lab.element('media').children[0];
+  lab.expireTimeouts();
+  await firstLoad;
+  oldNode.emit('loadedmetadata');
+  await flushAsync();
+  assert.equal(lab.assignment(), null);
+  assert.equal(lab.element('submit').disabled, true);
+  assert.equal(lab.element('retry-load').classList.contains('hidden'), false);
+});
+
+test('image decode failure leaves the assignment held', async () => {
+  const lab = harness([next(item('image-bad'))], ['decode-error']);
+  await lab.signIn();
+  assert.equal(lab.assignment(), null);
+  assert.equal(lab.element('submit').disabled, true);
+  assert.equal(lab.element('retry-load').classList.contains('hidden'), false);
+});
+
+test('playback error after metadata revokes the current assignment only', async () => {
+  const mediaItem = {...item('video-a'), modality: 'video', mime_type: 'video/mp4'};
+  const lab = harness([next(mediaItem)]);
+  await lab.signIn();
+  assert.equal(lab.assignment().assignment_id, mediaItem.assignment_id);
+  lab.element('media').children[0].emit('error');
+  assert.equal(lab.assignment(), null);
+  assert.equal(lab.element('submit').disabled, true);
+  assert.equal(lab.element('retry-load').classList.contains('hidden'), false);
+});
+
+test('an older next response cannot replace a newer loaded assignment', async () => {
+  let resolveOld;
+  const oldResponse = new Promise(resolve => { resolveOld = resolve; });
+  const lab = harness([oldResponse, next(item('new'))]);
+  const firstLoad = lab.signIn();
+  await flushAsync();
+  await lab.retry();
+  assert.equal(lab.assignment().assignment_id, 'new');
+  resolveOld(next(item('old')));
+  await firstLoad;
+  assert.equal(lab.assignment().assignment_id, 'new');
+  assert.equal(lab.element('submit').disabled, false);
+});
+
+test('an older media failure cannot clear a newer loaded assignment', async () => {
+  const oldItem = {...item('old-video'), modality: 'video', mime_type: 'video/mp4'};
+  const lab = harness([next(oldItem), next(item('new'))], ['pending']);
+  const firstLoad = lab.signIn();
+  await flushAsync();
+  const oldNode = lab.element('media').children[0];
+  await lab.retry();
+  assert.equal(lab.assignment().assignment_id, 'new');
+  oldNode.emit('error');
+  await firstLoad;
+  assert.equal(lab.assignment().assignment_id, 'new');
+  assert.equal(lab.element('submit').disabled, false);
 });

@@ -25,7 +25,7 @@
 | Rater bias | Blind truth and evaluator output until submission |
 | Repeat-item gaming | Hide repeat markers in the UI and randomize order |
 | Overwriting disagreement | Append-only annotation/adjudication separation |
-| Cross-rater contamination | Assignment-bound access and no aggregate results during collection |
+| Cross-rater contamination | Assignment-bound access; no public aggregate endpoint during collection. Offline agreement requires local database access and a separate release decision. |
 | Metric shopping | Pre-register primary metrics and priority defect families |
 | Synthetic results mistaken for findings | Prominent labels in UI, reports, and documentation |
 | Production access drift | No production SDKs, URLs, credentials, or network adapters |

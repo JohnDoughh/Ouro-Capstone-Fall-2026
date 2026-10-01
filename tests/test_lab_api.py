@@ -12,10 +12,95 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from ouro_eval_lab.api import LabHandler
+from ouro_eval_lab.runner import export_annotations
 from ouro_eval_lab.store import connect, ingest, next_assignment, save_annotation
 
 
 class LabApiTests(unittest.TestCase):
+    def test_reviewer_metadata_is_blinded_without_changing_saved_media_bindings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_id = "SYN-ORBIT-CLEAN"
+            fixture = root / "clean.txt"
+            original = b"Synthetic observation exercise."
+            fixture.write_bytes(original)
+            digest = hashlib.sha256(original).hexdigest()
+            db_path = root / "lab.db"
+            ingest(db_path, {"artifacts": [{
+                "sha256": digest, "artifact_id": source_id,
+                "relative_path": fixture.name, "byte_length": len(original),
+                "mime_type": "text/plain", "modality": "text", "split": "practice",
+                "defect_family": "synthetic", "defect_present": 0, "synthetic": 1,
+            }]}, root)
+            # Existing assignments, as well as fresh ones, must receive the fix.
+            with connect(db_path) as db:
+                next_assignment(db, "rater-a")
+                source_before = dict(db.execute("SELECT * FROM artifacts").fetchone())
+            handler = type("TestHandler", (LabHandler,), {
+                "db_path": db_path, "log_message": lambda *args: None,
+            })
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                base = f"http://127.0.0.1:{server.server_address[1]}"
+
+                def get_assignment():
+                    with urllib.request.urlopen(f"{base}/api/next?rater=rater-a") as response:
+                        raw = response.read().decode()
+                    for hidden in (source_id, fixture.name, digest, str(root),
+                                   "defect_present", "defect_family", "repeat_group", "split",
+                                   "artifact_id", "evaluator"):
+                        self.assertNotIn(hidden, raw)
+                    assignment = json.loads(raw)["assignment"]
+                    self.assertEqual(set(assignment), {
+                        "assignment_id", "sequence", "started_at", "mime_type", "modality",
+                        "review_label", "media_url",
+                    })
+                    return assignment
+
+                assignment = get_assignment()
+                self.assertEqual(assignment["review_label"], "Item 001")
+                self.assertEqual(get_assignment(), assignment)
+                with urllib.request.urlopen(base + assignment["media_url"]) as response:
+                    self.assertEqual(response.read(), original)
+                    self.assertNotIn(fixture.name, str(response.headers))
+                payload = {
+                    "verdict": "UNSURE", "confidence": 2, "severity": 1,
+                    "reason_codes": [], "note": "Synthetic observation",
+                }
+                request = urllib.request.Request(
+                    f"{base}/api/annotations/{assignment['assignment_id']}?rater=rater-a",
+                    data=json.dumps(payload).encode(),
+                    headers={"Content-Type": "application/json"}, method="POST",
+                )
+                with urllib.request.urlopen(request) as response:
+                    self.assertEqual(response.status, 201)
+                    receipt = json.load(response)
+                repeated = get_assignment()
+                self.assertEqual(repeated["review_label"], "Item 002")
+                self.assertNotEqual(repeated["assignment_id"], assignment["assignment_id"])
+                with connect(db_path) as db:
+                    source_after = dict(db.execute("SELECT * FROM artifacts").fetchone())
+                    exported = json.loads(export_annotations(db))["annotations"]
+                    self.assertEqual(db.execute(
+                        "SELECT assignment_id FROM annotations WHERE annotation_id=?",
+                        (receipt["annotation_id"],),
+                    ).fetchone()[0], assignment["assignment_id"])
+                    self.assertEqual(db.execute(
+                        "SELECT artifact_sha256 FROM assignments WHERE assignment_id=?",
+                        (repeated["assignment_id"],),
+                    ).fetchone()[0], digest)
+                self.assertEqual(source_before, source_after)
+                self.assertEqual(len(exported), 1)
+                self.assertEqual(exported[0]["artifact_sha256"], digest)
+                self.assertEqual(exported[0]["annotation_id"], receipt["annotation_id"])
+                self.assertEqual(exported[0]["verdict"], "UNSURE")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_annotation_retry_returns_original_receipt_without_rewriting_judgment(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

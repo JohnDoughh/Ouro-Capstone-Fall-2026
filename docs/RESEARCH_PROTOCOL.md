@@ -30,6 +30,28 @@ Before collecting judgments, record:
 
 Do not choose these after viewing results.
 
+## Blinded collection
+
+The reviewer screen and assignment response show neutral item numbers instead
+of source IDs that may reveal `clean` or a seeded defect. Keep source manifests,
+fixture READMEs, references, and evaluator outputs away from raters until the
+protocol's reveal stage. A public teaching repository cannot hide its answer
+files from someone inspecting the checkout; UI blinding alone is not proof of
+an independent blinded study.
+
+Some bootstrap practice fixtures also contain explicit control/defect wording
+inside the media. Those remain teaching examples, not blinded study material;
+this label fix does not alter any fixture bytes.
+
+If a rater has already seen an answer-revealing label, preserve their original
+response and record the exposure separately. Relabeling the screen cannot make
+that earlier judgment blind. Apply the pre-registered exposure/exclusion policy;
+do not silently replace the judgment or count a repeat as a fresh blinded rating.
+
+An externally delivered manual-viewing package follows its own approved
+instructions. Neutral lab labels do not make a media-only ZIP importable, grant
+new media permissions, or authorize revealing private intent/evaluation files.
+
 ## Label semantics
 
 - `PASS`: no target defect is present.

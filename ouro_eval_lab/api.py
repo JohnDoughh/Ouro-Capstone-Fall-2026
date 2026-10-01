@@ -98,9 +98,14 @@ class LabHandler(BaseHTTPRequestHandler):
                     assignment = next_assignment(db, rater)
                     state = progress(db, rater)
                 if assignment:
+                    # Source IDs can encode the answer (for example CLEAN).
+                    # Only send presentation fields; preserve canonical identity
+                    # and media bindings in storage and offline exports.
+                    assignment = {key: assignment[key] for key in (
+                        "assignment_id", "sequence", "started_at", "mime_type", "modality",
+                    )}
+                    assignment["review_label"] = f"Item {assignment['sequence'] + 1:03d}"
                     assignment["media_url"] = f"/api/media/{assignment['assignment_id']}?rater={rater}"
-                    for hidden in ("relative_path", "fixture_root", "sha256"):
-                        assignment.pop(hidden, None)
                 return self._json(200, {"assignment": assignment, "progress": state})
             if parsed.path.startswith("/api/media/"):
                 assignment_id = parsed.path.rsplit("/", 1)[-1]

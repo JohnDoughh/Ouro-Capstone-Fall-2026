@@ -46,6 +46,17 @@ Existing annotations created before version `2.0.0` retain their original 0-to-1
 
 Repeat items share a hidden `repeat_group`. The interface does not label them as repeats.
 
+The reviewer-facing `/api/next` response uses a neutral `review_label` such as
+`Item 001`, numbered by the rater's randomized assignment sequence. It is stable
+when reloading that assignment; a repeat receives its own item number. The
+response includes only `assignment_id`, `sequence`, `started_at`, `mime_type`,
+`modality`, `review_label`, and an assignment-scoped `media_url`. It does not
+expose the source `artifact_id`, filename/path, artifact SHA, truth, defect
+family, split, repeat marker, or evaluator output. Original artifact IDs and
+SHA bindings remain in the local database; annotation exports retain the
+original annotation ID and artifact SHA. This presentation change does not
+change annotation contract `2.1.0` or rewrite saved judgments.
+
 ## Adjudication
 
 Adjudication is stored as a separate append-only decision linked to annotations. It must never modify or delete a rater's original response.

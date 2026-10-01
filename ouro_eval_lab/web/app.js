@@ -243,7 +243,7 @@ async function loadNext() {
     await renderMedia(body.assignment);
     if (state.loadEpoch !== loadEpoch) throw new Error('Assignment media load was interrupted');
     $('modality').textContent = body.assignment.modality;
-    $('artifact-id').textContent = body.assignment.artifact_id;
+    $('artifact-id').textContent = body.assignment.review_label || 'Review item';
     state.assignment = body.assignment;
     setJudgmentEditable(true);
     $('submit').disabled = false;

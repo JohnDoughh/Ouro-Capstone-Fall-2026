@@ -129,7 +129,26 @@ function next(assignment, completed = 0) {
   return {ok: true, body: {assignment, progress: {completed, total: 2}}};
 }
 
-const item = id => ({assignment_id: id, artifact_id: id, modality: 'image', mime_type: 'image/png', media_url: `/media/${id}`});
+const item = id => ({assignment_id: id, review_label: 'Item 001', modality: 'image', mime_type: 'image/png', media_url: `/media/${id}`});
+
+test('reviewer label is neutral and saves still use the original assignment', async () => {
+  const lab = harness([
+    next({...item('opaque-id'), artifact_id: 'SYN-ORBIT-CLEAN'}),
+    {ok: true, body: {annotation_id: 'saved'}}, next(null, 1),
+  ]);
+  await lab.signIn();
+  assert.equal(lab.element('artifact-id').textContent, 'Item 001');
+  await lab.submit();
+  const saved = lab.requests.find(request => request.method === 'POST');
+  assert.equal(saved.url, '/api/annotations/opaque-id?rater=rater-a');
+  assert.equal(saved.body.includes('SYN-ORBIT-CLEAN'), false);
+});
+
+test('missing presentation label never falls back to an answer-revealing source ID', async () => {
+  const lab = harness([next({...item('opaque-id'), review_label: undefined, artifact_id: 'SYN-ORBIT-CLEAN'})]);
+  await lab.signIn();
+  assert.equal(lab.element('artifact-id').textContent, 'Review item');
+});
 
 test('failed next load after save cannot resubmit the completed assignment', async () => {
   const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}},

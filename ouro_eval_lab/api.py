@@ -9,7 +9,6 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .contracts import ContractError, validate_annotation_payload
-from .runner import agreement_report
 from .store import connect, next_assignment, progress, save_annotation
 
 
@@ -85,9 +84,6 @@ class LabHandler(BaseHTTPRequestHandler):
                     for hidden in ("relative_path", "fixture_root", "sha256"):
                         assignment.pop(hidden, None)
                 return self._json(200, {"assignment": assignment, "progress": state})
-            if parsed.path == "/api/agreement":
-                with connect(self.db_path) as db:
-                    return self._json(200, agreement_report(db))
             if parsed.path.startswith("/api/media/"):
                 assignment_id = parsed.path.rsplit("/", 1)[-1]
                 rater = self._rater(query)

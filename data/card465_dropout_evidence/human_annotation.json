@@ -1,0 +1,18 @@
+{
+  "annotation_contract_version": "2.1.0",
+  "annotation_id": "p0FDv6cWOVxCXk2aF",
+  "artifact_id": "syn-tone-b",
+  "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+  "completed_at": "2026-09-29T22:53:56.809705+00:00",
+  "confidence": 5,
+  "confidence_scale": "1-5",
+  "defect_timestamps": "00:04-00:05",
+  "note": "audio missing from timestamp 00:04-00:05.",
+  "rater_id": "rater-e",
+  "reason_codes": [
+    "audio_integrity"
+  ],
+  "severity": 3,
+  "started_at": "2026-09-29T22:52:33.105507+00:00",
+  "verdict": "HOLD"
+}

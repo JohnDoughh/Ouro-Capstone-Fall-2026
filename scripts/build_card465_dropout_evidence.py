@@ -48,7 +48,9 @@ def validate_simulated(output: dict) -> None:
     if output.get("verdict") not in {"PASS", "HOLD"}:
         raise ValueError("simulated evaluator output has an unsupported verdict")
     confidence = output.get("confidence")
-    if not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+    # bool is a subclass of int in Python, but JSON true/false is not a
+    # meaningful numeric confidence value.
+    if type(confidence) not in (int, float) or not 0 <= confidence <= 1:
         raise ValueError("simulated evaluator confidence must be between 0 and 1")
 
 

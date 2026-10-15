@@ -2,6 +2,8 @@
 
 This public-safe package integrates Team B's timestamped human annotation with one explicitly simulated evaluator output for the synthetic `dropout.wav` practice artifact. It is a pipeline demonstration, not an Ouro performance claim or research finding.
 
+`human_annotation.json` is an actual course observation recorded against this synthetic practice artifact; it is not a fabricated evaluator record or an observation of private blinded media. The package intentionally omits the reviewer's identity. Any human observation made against real or private course media must remain in the approved private evidence location and must not be copied into this repository.
+
 ## Pinned artifact identity
 
 - Artifact ID: `syn-tone-b`
@@ -13,7 +15,7 @@ The same artifact ID and SHA-256 appear in the preserved human annotation, simul
 
 ## Contents
 
-- `human_annotation.json`: preserved pseudonymous reviewer response with timestamp, HOLD verdict, severity `3` on the `0-3` scale, and confidence `5` on the `1-5` scale.
+- `human_annotation.json`: preserved course observation of the synthetic practice artifact, with reviewer identity omitted, timestamp, HOLD verdict, severity `3` on the `0-3` scale, and confidence `5` on the `1-5` scale.
 - `simulated_evaluator_output.json`: explicitly fictional deterministic comparison input. It is not a real evaluator result.
 - `exports/comparison.json`: human-versus-simulated verdict comparison.
 - `exports/dropout-evidence-package.json`: shareable combined export.

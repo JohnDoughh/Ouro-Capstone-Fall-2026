@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_card465_dropout_evidence import EXPECTED_SHA256, build
+from scripts.build_card465_dropout_evidence import EXPECTED_SHA256, build, validate_simulated
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +12,15 @@ ARTIFACT = ROOT / "data" / "public_audio" / "dropout.wav"
 
 
 class Card465DropoutEvidenceTests(unittest.TestCase):
+    def test_simulated_confidence_rejects_json_booleans(self):
+        baseline = json.loads((PACKAGE / "simulated_evaluator_output.json").read_text())
+        for value in (True, False):
+            with self.subTest(confidence=value):
+                output = dict(baseline)
+                output["confidence"] = value
+                with self.assertRaisesRegex(ValueError, "confidence must be between 0 and 1"):
+                    validate_simulated(output)
+
     def test_package_is_reproducible_and_bound_to_one_artifact(self):
         with tempfile.TemporaryDirectory() as first_dir, tempfile.TemporaryDirectory() as second_dir:
             first = Path(first_dir)

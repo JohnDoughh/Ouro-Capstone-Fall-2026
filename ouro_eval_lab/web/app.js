@@ -338,3 +338,96 @@ async function renderMedia(item) {
     pre.textContent = content;
   }
 }
+
+// Completed records are hidden until requested and fetched fresh each time.
+let savedVisible = false;
+function savedText(tag, text, className = '') {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  node.className = className;
+  return node;
+}
+
+function renderSavedAnnotations(records) {
+  const container = $('saved-records');
+  container.replaceChildren();
+  for (const record of records) {
+    const card = document.createElement('article');
+    card.className = 'saved-card';
+    const heading = document.createElement('div');
+    heading.className = 'saved-heading';
+    heading.append(savedText('h3', record.review_label));
+    heading.append(savedText('span', record.verdict, `verdict-badge verdict-${record.verdict.toLowerCase()}`));
+    card.append(heading);
+    const fields = document.createElement('dl');
+    fields.className = 'saved-fields';
+    for (const [label, value] of [
+      ['Severity', `${record.severity} / 3`],
+      ['Confidence', `${record.confidence} / 5 (scale ${record.confidence_scale})`],
+      ['Defect timestamp', record.defect_timestamps || 'None recorded'],
+      ['Reason codes', record.reason_codes.length ? record.reason_codes.join(', ') : 'None selected'],
+    ]) {
+      const field = document.createElement('div');
+      field.append(savedText('dt', label));
+      field.append(savedText('dd', value));
+      fields.append(field);
+    }
+    card.append(fields);
+    card.append(savedText('h4', 'Evidence note'));
+    card.append(savedText('p', record.note || 'No note provided', 'saved-note'));
+    const details = document.createElement('details');
+    details.append(savedText('summary', 'Record details'));
+    const metadata = document.createElement('dl');
+    metadata.className = 'saved-metadata';
+    for (const [label, value] of [
+      ['Artifact ID', record.artifact_id], ['SHA-256', record.artifact_sha256],
+      ['Annotation ID', record.annotation_id], ['Started at', record.started_at],
+      ['Saved at', record.completed_at],
+    ]) {
+      metadata.append(savedText('dt', label));
+      metadata.append(savedText('dd', value));
+    }
+    details.append(metadata);
+    card.append(details);
+    container.append(card);
+  }
+}
+
+$('load-saved').addEventListener('click', async () => {
+  const button = $('load-saved');
+  $('saved-error').textContent = '';
+  $('saved-records').replaceChildren();
+  $('saved-panel').classList.add('hidden');
+  $('saved-download').removeAttribute('href');
+  button.setAttribute('aria-expanded', 'false');
+  if (savedVisible) {
+    savedVisible = false;
+    button.textContent = 'Show annotations';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Loading annotations…';
+  try {
+    const body = await withDeadline(async signal => {
+      const response = await fetch(`/api/saved-annotations?rater=${encodeURIComponent(state.rater)}`, {
+        signal, cache: 'no-store',
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to load saved annotations');
+      return body;
+    }, 'Timed out loading saved annotations');
+    renderSavedAnnotations(body.annotations);
+    $('saved-summary').textContent = `${body.annotations.length} saved annotations`;
+    $('saved-download').href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(body, null, 2));
+    $('saved-panel').classList.remove('hidden');
+    savedVisible = true;
+    button.textContent = 'Hide annotations';
+    button.setAttribute('aria-expanded', 'true');
+  } catch (error) {
+    $('saved-records').replaceChildren();
+    button.textContent = 'Show annotations';
+    $('saved-error').textContent = error.message || 'Unable to load saved annotations';
+  } finally {
+    button.disabled = false;
+  }
+});

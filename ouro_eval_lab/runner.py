@@ -118,6 +118,7 @@ def inspect_native_avc(manifest_path: Path, evaluation_path: Path) -> dict:
 EXPORT_FIELDS = [
     "annotation_id", "rater_id", "artifact_sha256", "verdict", "confidence",
     "confidence_scale", "severity", "defect_timestamps",
+    "rubric_version", "defect_family_id", "region", "reference_id", "evidence_description",
     "reason_codes", "note", "started_at", "completed_at",
 ]
 

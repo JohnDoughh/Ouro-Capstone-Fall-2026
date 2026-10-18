@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 CONTRACT_VERSION = "1.0.0"
-ANNOTATION_CONTRACT_VERSION = "2.1.0"
+ANNOTATION_CONTRACT_VERSION = "2.2.0"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MODALITIES = {"image", "audio", "video", "text"}
 SPLITS = {"development", "calibration", "holdout"}
@@ -14,6 +14,12 @@ HUMAN_VERDICTS = {"PASS", "HOLD", "UNSURE"}
 HUMAN_REASON_CODES = {
     "visual_integrity", "audio_integrity", "temporal_integrity", "intent_integrity",
 }
+# Team A visual ontology (docs/team_a/ontology.yaml): family ID -> requires_reference.
+# IDs are never reused; a new rubric version is added here alongside its families.
+TEAM_A_RUBRIC_FAMILIES = {
+    "v0.1": {1: False, 2: False, 3: True, 4: True, 5: False, 6: False},
+}
+EVIDENCE_FIELDS = ("rubric_version", "defect_family_id", "region", "reference_id", "evidence_description")
 NATIVE_AVC_VERSION = "2.0.0-proposed.2"
 NATIVE_AVC_PREVIOUS_VERSION = "2.0.0-proposed.1"
 NATIVE_AVC_DECISIONS = {"approve", "hold", "reject"}
@@ -206,7 +212,7 @@ def validate_native_avc_output(record: dict[str, Any]) -> None:
 
 
 def validate_annotation_payload(record: dict[str, Any]) -> None:
-    allowed = {"verdict", "confidence", "severity", "defect_timestamps", "reason_codes", "note"}
+    allowed = {"verdict", "confidence", "severity", "defect_timestamps", "reason_codes", "note", *EVIDENCE_FIELDS}
     unknown = sorted(record.keys() - allowed)
     if unknown:
         raise ContractError(f"annotation contains unknown fields: {', '.join(unknown)}")
@@ -229,3 +235,32 @@ def validate_annotation_payload(record: dict[str, Any]) -> None:
         raise ContractError("reason_codes must be unique")
     if len(str(record.get("note", ""))) > 500:
         raise ContractError("note must be at most 500 characters")
+    _validate_evidence(record)
+
+
+def _validate_evidence(record: dict[str, Any]) -> None:
+    """Structured defect evidence is optional, HOLD-only, and anchored to a rubric family."""
+    given = [field for field in EVIDENCE_FIELDS if record.get(field) not in (None, "")]
+    if not given:
+        return
+    if record["verdict"] != "HOLD":
+        raise ContractError(f"{record['verdict']} annotations cannot include evidence fields: {', '.join(given)}")
+    if "rubric_version" not in given or "defect_family_id" not in given:
+        raise ContractError("evidence requires both rubric_version and defect_family_id")
+    families = TEAM_A_RUBRIC_FAMILIES.get(record["rubric_version"])
+    if families is None:
+        raise ContractError("rubric_version is not a known Team A rubric version")
+    family = record["defect_family_id"]
+    if type(family) is not int or family not in families:
+        raise ContractError(f"defect_family_id must be one of {sorted(families)} for rubric {record['rubric_version']}")
+    for field, limit in (("region", 240), ("evidence_description", 500)):
+        if field in record and record[field] is not None and (
+            not isinstance(record[field], str) or len(record[field]) > limit
+        ):
+            raise ContractError(f"{field} must be a string of at most {limit} characters")
+    reference = record.get("reference_id")
+    if families[family]:
+        if not isinstance(reference, str) or not SHA256_RE.fullmatch(reference):
+            raise ContractError(f"defect family {family} requires reference_id as 64 lowercase hex characters")
+    elif reference not in (None, ""):
+        raise ContractError(f"defect family {family} does not use a reference; leave reference_id empty")

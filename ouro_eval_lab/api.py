@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .contracts import ContractError, validate_annotation_payload
+from .contracts import EVIDENCE_FIELDS, ContractError, validate_annotation_payload
 from .store import connect, next_assignment, progress, save_annotation
 
 
@@ -30,6 +30,7 @@ def _same_saved_annotation(row: sqlite3.Row, payload: dict) -> bool:
         and (row["defect_timestamps"] or "") == payload.get("defect_timestamps", "").strip()
         and json.loads(row["reason_codes"]) == payload["reason_codes"]
         and row["note"] == payload.get("note", "")
+        and all(row[field] == payload.get(field) for field in EVIDENCE_FIELDS)
     )
 
 
@@ -185,7 +186,8 @@ class LabHandler(BaseHTTPRequestHandler):
                     saved = db.execute(
                         """SELECT annotation_id, completed_at, verdict, confidence,
                                   confidence_scale, severity, defect_timestamps,
-                                  reason_codes, note FROM annotations
+                                  rubric_version, defect_family_id, region, reference_id,
+                                  evidence_description, reason_codes, note FROM annotations
                            WHERE assignment_id=? AND rater_id=?""",
                         (assignment_id, rater),
                     ).fetchone()

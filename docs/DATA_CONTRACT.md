@@ -38,11 +38,25 @@ Allowed verdicts are `PASS` and `HOLD`. Confidence is the probability assigned t
 
 ## Human annotation
 
-Human annotation contract version: `2.1.0`. Annotations include pseudonymous `rater_id`, assignment ID, artifact SHA, `PASS`/`HOLD`/`UNSURE`, integer confidence from 1 to 5, integer severity from 0 to 3, optional defect timestamps, controlled reason codes, optional short note, and start/completion timestamps. The accepted reason codes for new submissions are `visual_integrity`, `audio_integrity`, `temporal_integrity`, and `intent_integrity`; the list may be empty but may not contain duplicates or unknown codes. This enforces the existing controlled vocabulary without rewriting historical stored annotations or exports. Confidence is ordinal and distinct from evaluator-output probability in contract `1.0.0`. Severity 0 means no observable defect; 1 is minor; 2 is moderate; 3 is severe. Severity records observed impact independently from the verdict; the common PASS/HOLD alignments are guidance, not validation rules. Defect timestamps are reviewer-entered text up to 240 characters; separate multiple points/ranges with semicolons, for example `00:04-00:05; 00:08`. The API resolves the rater from the assignment and never accepts an artifact ID supplied by the browser.
+Human annotation contract version: `2.2.0`. Annotations include pseudonymous `rater_id`, assignment ID, artifact SHA, `PASS`/`HOLD`/`UNSURE`, integer confidence from 1 to 5, integer severity from 0 to 3, optional defect timestamps, controlled reason codes, optional short note, and start/completion timestamps. The accepted reason codes for new submissions are `visual_integrity`, `audio_integrity`, `temporal_integrity`, and `intent_integrity`; the list may be empty but may not contain duplicates or unknown codes. This enforces the existing controlled vocabulary without rewriting historical stored annotations or exports. Confidence is ordinal and distinct from evaluator-output probability in contract `1.0.0`. Severity 0 means no observable defect; 1 is minor; 2 is moderate; 3 is severe. Severity records observed impact independently from the verdict; the common PASS/HOLD alignments are guidance, not validation rules. Defect timestamps are reviewer-entered text up to 240 characters; separate multiple points/ranges with semicolons, for example `00:04-00:05; 00:08`. The API resolves the rater from the assignment and never accepts an artifact ID supplied by the browser.
+
+### Structured defect evidence (2.2.0)
+
+Contract `2.2.0` adds five optional evidence fields. They are allowed only on `HOLD` annotations; `PASS` and `UNSURE` must leave them absent, `null`, or empty.
+
+| Field | Type | Rule |
+|---|---|---|
+| `rubric_version` | string | A known Team A rubric version from `docs/team_a/ontology.yaml`; currently `"v0.1"`. |
+| `defect_family_id` | integer | A family ID in that rubric version (`1`-`6` for `v0.1`). IDs are never reused. |
+| `region` | string | Reviewer-entered location in the frame, up to 240 characters, for example `orange claim badge, lower right`. Timing stays in `defect_timestamps`. |
+| `reference_id` | string | SHA-256 (64 lowercase hex) of the approved reference. Required when the family has `requires_reference: true` (families 3 and 4 in `v0.1`); must be empty otherwise. |
+| `evidence_description` | string | What the reviewer saw, up to 500 characters. |
+
+If any evidence field is supplied, `rubric_version` and `defect_family_id` are both required. A `HOLD` without evidence remains valid, so the reviewer interface keeps working before it collects these fields. Values are stored and exported exactly as submitted; omitted fields are stored as `null` and are never filled in. The exact-retry comparison includes every evidence field, so a retry with different evidence returns `409`. The rater's `defect_family_id` is a judgment and is distinct from the artifact's hidden `defect_family` truth label, which is still never sent to the browser.
 
 An annotation POST is serialized by assignment. The first accepted judgment returns `201` and its annotation ID/completion time. A retry of the same assignment, rater, and normalized judgment returns the original receipt with `200` and `replayed: true`; it neither creates nor changes an annotation. A different judgment for a completed assignment returns `409`. `400` is reserved for a definite pre-write validation rejection; storage/transaction ambiguity returns `503` or a transport failure. After an acknowledgement timeout, the browser freezes the original request in tab-scoped session storage and permits only an exact retry until it receives a receipt. A timeout is not evidence of rollback. Recovery across a closed tab or another device is not guaranteed. This is a delivery/retry clarification, not a change to stored annotation format or historical records.
 
-Existing annotations created before version `2.0.0` retain their original 0-to-1 confidence value and export with `confidence_scale: "legacy-0-1"`, unknown severity (`null`), and unknown defect timestamps (`null`). They are not silently converted.
+Existing annotations created before version `2.0.0` retain their original 0-to-1 confidence value and export with `confidence_scale: "legacy-0-1"`, unknown severity (`null`), and unknown defect timestamps (`null`). They are not silently converted. Annotations created before `2.2.0` export every evidence field as `null` (unknown); `initialize` adds the columns without defaults and does not modify existing rows.
 
 Repeat items share a hidden `repeat_group`. The interface does not label them as repeats.
 
@@ -55,7 +69,7 @@ expose the source `artifact_id`, filename/path, artifact SHA, truth, defect
 family, split, repeat marker, or evaluator output. Original artifact IDs and
 SHA bindings remain in the local database; annotation exports retain the
 original annotation ID and artifact SHA. This presentation change does not
-change annotation contract `2.1.0` or rewrite saved judgments.
+change the annotation contract (then `2.1.0`) or rewrite saved judgments.
 
 ## Adjudication
 
@@ -67,6 +81,8 @@ Adjudication is stored as a separate append-only decision linked to annotations.
 - Added optional fields require a minor version.
 - Clarifications and test-only changes require a patch version.
 - Every contract change needs validator and regression-test updates.
+
+Compatibility note for annotation `2.2.0`: additive minor change. New optional columns and export fields (`rubric_version`, `defect_family_id`, `region`, `reference_id`, `evidence_description`) are appended to the annotation export after `defect_timestamps`. Consumers that select export columns by name are unaffected; consumers that read CSV columns by position must update. Existing stored annotations and their values are unchanged.
 
 
 ## Separately versioned native AVC inspection

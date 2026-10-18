@@ -66,10 +66,11 @@ The current interface captures:
 - confidence on a five-point scale;
 - severity from 0 (none) to 3 (severe);
 - optional defect timestamp(s);
+- optional structured evidence on `HOLD` (Team A rubric version, defect family ID, region, reference SHA-256, evidence description), stored and exported as entered; the browser form does not collect it yet;
 - four generic reason groups;
 - an optional note.
 
-It does not yet capture the rest of the required final ontology, including commercial-meaning recovery, suspected failure origin, rubric version, or structured evidence. Existing annotations from before timestamp capture are retained with unknown timestamps and identified as legacy confidence in exports.
+It does not yet capture the rest of the required final ontology, including commercial-meaning recovery or suspected failure origin. Existing annotations from before timestamp capture are retained with unknown timestamps and identified as legacy confidence in exports.
 
 ### Adjudication
 

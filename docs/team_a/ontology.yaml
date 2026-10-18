@@ -1,0 +1,32 @@
+rubric_version: "v0.1"
+
+defect_families:
+  - id: 1
+    name: "Presenter Identity Continuity"
+    definition: "The depicted presenter does not remain visually consistent in identity or recognizable appearance across shots where the same presenter is expected."
+    requires_reference: false
+
+  - id: 2
+    name: "Face, Hand, Body, and Object Integrity"
+    definition: "A visible person or object contains a physically or anatomically impossible, malformed, duplicated, missing, or visibly distorted feature."
+    requires_reference: false
+
+  - id: 3
+    name: "Product and Packaging Accuracy"
+    definition: "The depicted product or packaging is visibly incorrect, malformed, inconsistent with the approved reference, or contains an incorrect visual product feature."
+    requires_reference: true
+
+  - id: 4
+    name: "Visible Text and Claim Accuracy"
+    definition: "Text intended to appear on screen is visibly incorrect, unreadable, malformed, missing, or inconsistent with the approved text or claim reference."
+    requires_reference: true
+
+  - id: 5
+    name: "Scene-to-Scene Visual Continuity"
+    definition: "A visual element that should remain consistent between adjacent or related shots changes unexpectedly in appearance, position, state, or environment."
+    requires_reference: false
+
+  - id: 6
+    name: "Composition, Occlusion, and Rendering Defects"
+    definition: "A visible element is improperly framed, unintentionally obscured, clipped, corrupted, or affected by a visible rendering failure such as a black frame."
+    requires_reference: false

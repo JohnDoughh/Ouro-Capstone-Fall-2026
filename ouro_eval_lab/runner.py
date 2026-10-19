@@ -6,7 +6,10 @@ import io
 import json
 from pathlib import Path
 
-from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output
+from .contracts import (
+    ANNOTATION_CONTRACT_VERSION, INTENT_FIELDS, INTENT_RESPONSE_CONTRACT_VERSION,
+    validate_evaluator_output, validate_manifest, validate_native_avc_output,
+)
 from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
 
@@ -144,6 +147,52 @@ def export_annotations(db, format_name: str = "json") -> str:
         for row in rows:
             writer.writerow({**row, "reason_codes": "|".join(row["reason_codes"])})
         return stream.getvalue()
+    raise ValueError("format must be json or csv")
+
+
+INTENT_EXPORT_FIELDS = [
+    "response_id", "rater_id", "artifact_sha256", "response_contract_version",
+    "components", "other_beats", "play_count", "play_limit", "started_at", "completed_at",
+]
+INTENT_CSV_FIELDS = (
+    INTENT_EXPORT_FIELDS[:4]
+    + [f"{field}_{part}" for field in INTENT_FIELDS for part in ("recall", "certainty", "could_not_tell")]
+    + INTENT_EXPORT_FIELDS[5:]
+)
+
+
+def export_intent_responses(db, format_name: str = "json") -> tuple[bytes, int]:
+    """Serialize every Stage 1 response deterministically for the freeze.
+
+    The same database always yields the same bytes, so the freeze SHA-256 can
+    be recomputed by anyone holding the export.
+    """
+    rows = [dict(row) for row in db.execute(
+        "SELECT " + ", ".join(INTENT_EXPORT_FIELDS)
+        + " FROM intent_responses ORDER BY completed_at, response_id"
+    )]
+    for row in rows:
+        unknown = row.keys() - set(INTENT_EXPORT_FIELDS)
+        if unknown:
+            raise ValueError(f"export contains unknown fields: {unknown}")
+        row["components"] = json.loads(row["components"])
+    if format_name == "json":
+        body = json.dumps({
+            "intent_response_contract_version": INTENT_RESPONSE_CONTRACT_VERSION,
+            "responses": rows,
+        }, indent=2, sort_keys=True) + "\n"
+        return body.encode(), len(rows)
+    if format_name == "csv":
+        stream = io.StringIO(newline="")
+        writer = csv.DictWriter(stream, fieldnames=INTENT_CSV_FIELDS, lineterminator="\n")
+        writer.writeheader()
+        for row in rows:
+            flat = {key: row[key] for key in INTENT_EXPORT_FIELDS if key != "components"}
+            for field in INTENT_FIELDS:
+                for part in ("recall", "certainty", "could_not_tell"):
+                    flat[f"{field}_{part}"] = row["components"][field][part]
+            writer.writerow(flat)
+        return stream.getvalue().encode(), len(rows)
     raise ValueError("format must be json or csv")
 
 

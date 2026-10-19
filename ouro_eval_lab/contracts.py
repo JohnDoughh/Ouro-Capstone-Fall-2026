@@ -26,6 +26,34 @@ NATIVE_AVC_EVIDENCE_CODES = {
     "EXACT_BYTES_VERIFIED", "CANONICAL_RECORD_BOUND", "COMPLETED_JOB_BOUND",
     "COVERAGE_INCOMPLETE", "DEFECT_MAPPING_UNAVAILABLE",
 }
+# Team C intent study. Both contracts are separate from annotation 2.1.0.
+# Record 2.0.0 follows the committed envelope of the sealed sponsor records
+# (docs/DATA_CONTRACT.md, "Intent fidelity"); the originals are never rewritten.
+INTENT_CONTRACT_VERSION = "2.0.0"
+INTENT_RESPONSE_CONTRACT_VERSION = "1.0.0"
+INTENT_FIELDS = (
+    "audience", "problem", "product", "key_benefit", "support", "call_to_action", "tone",
+)
+INTENT_DELIVERY_CODES = {
+    "explicit_text", "implied", "visual_only", "partially_delivered",
+    "omitted_in_edit", "not_intended",
+}
+INTENT_RECORD_KEYS = {
+    "artifact_id", "delivery", "delivery_codes", "fictional", "frozen_at", "intended",
+    "note", "record_type", "relative_path", "salt", "schema",
+}
+INTENT_TEXT_MAX = 300
+INTENT_LABEL_MAX = 80
+INTENT_NOTE_MAX = 500
+INTENT_RECALL_MAX = 300
+INTENT_OTHER_BEATS_MAX = 500
+INTENT_MAX_PLAY_COUNT = 20
+_ARTIFACT_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,80}")
+_SALT_RE = re.compile(r"[A-Za-z0-9+/=_-]{1,128}")
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+# Digit boundaries rather than \b, so "rater_3055550100" is caught too.
+_PHONE_RE = re.compile(r"(?:\+\d[\d\s().-]{7,}\d)|(?:(?<!\d)\d{3}[\s.-]?\d{3}[\s.-]?\d{4}(?!\d))")
+_URL_RE = re.compile(r"https?://|www\.", re.IGNORECASE)
 
 
 class ContractError(ValueError):
@@ -229,3 +257,144 @@ def validate_annotation_payload(record: dict[str, Any]) -> None:
         raise ContractError("reason_codes must be unique")
     if len(str(record.get("note", ""))) > 500:
         raise ContractError("note must be at most 500 characters")
+
+
+def looks_like_phone_number(text: str) -> bool:
+    return bool(_PHONE_RE.search(text))
+
+
+def _contains_contact_info(text: str) -> bool:
+    return bool(_EMAIL_RE.search(text) or looks_like_phone_number(text))
+
+
+def _validate_record_text(text: Any, context: str, limit: int, required: bool = True) -> None:
+    if not isinstance(text, str) or len(text) > limit:
+        raise ContractError(f"{context} must be a string of at most {limit} characters")
+    if required and not text.strip():
+        raise ContractError(f"{context} must not be empty")
+    if _URL_RE.search(text) or _contains_contact_info(text):
+        raise ContractError(f"{context} must not contain URLs or contact details")
+
+
+def _component_map(value: Any, context: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != set(INTENT_FIELDS):
+        raise ContractError(f"{context} must contain exactly: {', '.join(INTENT_FIELDS)}")
+    return value
+
+
+def validate_intent_record(record: dict[str, Any]) -> None:
+    """Validate one revealed intent record in its committed envelope (2.0.0).
+
+    The allow-list is strict on purpose: an unexpected key may be a private
+    field (prompt, campaign, customer) and must stop the reveal, not be dropped.
+    Errors name keys, never values, so the custodian can run this check on the
+    sealed records and share the output without disclosing any intent.
+    """
+    if not isinstance(record, dict):
+        raise ContractError("intent record must be one JSON object")
+    _require(record, INTENT_RECORD_KEYS, "intent record")
+    unknown = sorted(record.keys() - INTENT_RECORD_KEYS)
+    if unknown:
+        raise ContractError(f"intent record contains forbidden/unknown fields: {', '.join(unknown)}")
+    if record["fictional"] is not True:
+        raise ContractError("public scaffold accepts fictional intent records only")
+    if not isinstance(record["artifact_id"], str) or not _ARTIFACT_ID_RE.fullmatch(record["artifact_id"]):
+        raise ContractError("intent record artifact_id must be 1-80 letters, numbers, - or _")
+    path = record["relative_path"]
+    if not isinstance(path, str) or not path or "/" in path or "\\" in path or path in {".", ".."}:
+        raise ContractError("intent record relative_path must be a bare file name")
+    if not isinstance(record["salt"], str) or not _SALT_RE.fullmatch(record["salt"]):
+        raise ContractError("intent record salt must be 1-128 URL-safe or base64 characters")
+    for field in ("schema", "record_type"):
+        _validate_record_text(record[field], f"intent record {field}", INTENT_LABEL_MAX)
+    if not isinstance(record["frozen_at"], str):
+        raise ContractError("intent record frozen_at must be an ISO-8601 timestamp")
+    _utc(record["frozen_at"], "intent record frozen_at")
+    _validate_record_text(record["note"], "intent record note", INTENT_NOTE_MAX, required=False)
+    codes = record["delivery_codes"]
+    if (not isinstance(codes, list) or not codes
+            or any(not isinstance(code, str) or code not in INTENT_DELIVERY_CODES for code in codes)
+            or len(set(codes)) != len(codes)):
+        raise ContractError("intent record delivery_codes must be unique controlled delivery codes")
+    intended = _component_map(record["intended"], "intent record intended")
+    delivery = _component_map(record["delivery"], "intent record delivery")
+    for field in INTENT_FIELDS:
+        code = delivery[field]
+        if not isinstance(code, str) or code not in codes:
+            raise ContractError(f"intent record delivery.{field} is not one of the record's delivery_codes")
+        # omitted_in_edit was intended, so only not_intended may leave the text empty.
+        _validate_record_text(
+            intended[field], f"intent record intended.{field}", INTENT_TEXT_MAX,
+            required=code != "not_intended",
+        )
+
+
+def intent_coding_units(record: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """Derive the per-component coding view of a verified record.
+
+    Call only after the commitment check and validate_intent_record. The view
+    is derived, never written back: the committed bytes stay the record.
+    """
+    return {
+        field: {"text": record["intended"][field], "delivery": record["delivery"][field]}
+        for field in INTENT_FIELDS
+    }
+
+
+def validate_intent_response_payload(record: dict[str, Any], play_limit: int | None = None) -> None:
+    """Validate one Stage 1 viewer response (intent response contract 1.0.0)."""
+    if not isinstance(record, dict):
+        raise ContractError("intent response must be one JSON object")
+    allowed = {"components", "other_beats", "play_count"}
+    unknown = sorted(record.keys() - allowed)
+    if unknown:
+        raise ContractError(f"intent response contains unknown fields: {', '.join(unknown)}")
+    _require(record, {"components", "play_count"}, "intent response")
+    components = record["components"]
+    if not isinstance(components, dict) or set(components) != set(INTENT_FIELDS):
+        raise ContractError(f"components must contain exactly: {', '.join(INTENT_FIELDS)}")
+    for field in INTENT_FIELDS:
+        item = components[field]
+        if not isinstance(item, dict) or set(item) != {"recall", "certainty", "could_not_tell"}:
+            raise ContractError(f"{field} must contain exactly recall, certainty and could_not_tell")
+        recall, certainty = item["recall"], item["certainty"]
+        if type(item["could_not_tell"]) is not bool:
+            raise ContractError(f"{field} could_not_tell must be true or false")
+        if not isinstance(recall, str) or len(recall) > INTENT_RECALL_MAX:
+            raise ContractError(f"{field} recall must be a string of at most {INTENT_RECALL_MAX} characters")
+        if item["could_not_tell"]:
+            if recall.strip() or certainty is not None:
+                raise ContractError(f"{field} marked could not tell must have no recall and no certainty")
+        else:
+            if not recall.strip():
+                raise ContractError(f"{field} recall is required unless could not tell is marked")
+            if type(certainty) is not int or not 1 <= certainty <= 5:
+                raise ContractError(f"{field} certainty must be an integer from 1 to 5")
+        if _contains_contact_info(recall):
+            raise ContractError(f"{field} recall must not contain contact details")
+    other = record.get("other_beats", "")
+    if not isinstance(other, str) or len(other) > INTENT_OTHER_BEATS_MAX:
+        raise ContractError(f"other_beats must be a string of at most {INTENT_OTHER_BEATS_MAX} characters")
+    if _contains_contact_info(other):
+        raise ContractError("other_beats must not contain contact details")
+    plays = record["play_count"]
+    if type(plays) is not int or not 0 <= plays <= INTENT_MAX_PLAY_COUNT:
+        raise ContractError(f"play_count must be an integer from 0 to {INTENT_MAX_PLAY_COUNT}")
+    if play_limit is not None and plays > play_limit:
+        raise ContractError(f"play_count exceeds the play limit of {play_limit}")
+
+
+def normalize_intent_response(record: dict[str, Any]) -> dict[str, Any]:
+    """Return the stored form of a validated response: trimmed text, fixed keys."""
+    return {
+        "components": {
+            field: {
+                "recall": record["components"][field]["recall"].strip(),
+                "certainty": record["components"][field]["certainty"],
+                "could_not_tell": record["components"][field]["could_not_tell"],
+            }
+            for field in INTENT_FIELDS
+        },
+        "other_beats": record.get("other_beats", "").strip(),
+        "play_count": record["play_count"],
+    }

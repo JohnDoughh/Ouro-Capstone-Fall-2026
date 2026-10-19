@@ -1,0 +1,4 @@
+# Files bound by SHA-256 must keep the exact committed bytes on every OS.
+# Without this, Windows checkouts with core.autocrlf=true rewrite LF to CRLF
+# and the hashes no longer match.
+team_c/sprint1_demo/** -text

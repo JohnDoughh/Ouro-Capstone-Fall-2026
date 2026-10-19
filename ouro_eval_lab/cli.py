@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from .api import serve
 from .contracts import validate_manifest
 from .fixtures import generate
-from .runner import agreement_report, export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
-from .store import connect, ingest, initialize
+from .runner import (
+    agreement_report, export_annotations, export_intent_responses, inspect_native_avc,
+    load_json, run_benchmark, verify_manifest,
+)
+from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
 
 
 def _write(path: Path, content: str) -> None:
@@ -55,6 +59,12 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--db", type=Path, required=True)
     export.add_argument("--out", type=Path, required=True)
     export.add_argument("--format", choices=["json", "csv"], default="json")
+    export_intent = sub.add_parser(
+        "export-intent", help="freeze Stage 1 intent responses before reveal; closes collection",
+    )
+    export_intent.add_argument("--db", type=Path, required=True)
+    export_intent.add_argument("--out", type=Path, required=True)
+    export_intent.add_argument("--format", choices=["json", "csv"], default="json")
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
@@ -66,6 +76,11 @@ def main(argv: list[str] | None = None) -> int:
     server.add_argument("--db", type=Path, required=True)
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8080)
+    server.add_argument("--study", choices=STUDIES, default="annotation")
+    server.add_argument(
+        "--play-limit", type=int, default=2,
+        help="intent study only: plays allowed per clip (pre-registered value: 2)",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "seed":
@@ -93,6 +108,23 @@ def main(argv: list[str] | None = None) -> int:
         with connect(args.db) as db:
             _write(args.out, export_annotations(db, args.format))
         print(f"wrote {args.out}")
+    elif args.command == "export-intent":
+        if not args.db.is_file():
+            parser.error("export-intent requires an existing local lab database")
+        with connect(args.db) as db:
+            # Hold the write lock from export to freeze so no response can be
+            # accepted after the export query but before collection closes.
+            db.execute("BEGIN IMMEDIATE")
+            body, count = export_intent_responses(db, args.format)
+            if count == 0:
+                parser.error("no intent responses to freeze")
+            digest = hashlib.sha256(body).hexdigest()
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_bytes(body)
+            freeze = record_intent_freeze(db, digest, args.format, count)
+        print(f"froze {count} intent responses to {args.out}")
+        print(f"sha256 {digest}  freeze {freeze['freeze_id']}")
+        print("intent collection is now closed; record this SHA-256 before any reveal")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")
@@ -104,8 +136,14 @@ def main(argv: list[str] | None = None) -> int:
         _write(args.out, json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.out}")
     elif args.command == "serve":
+        if args.play_limit < 1:
+            parser.error("--play-limit must be at least 1")
         initialize(args.db)
-        serve(args.db, args.host, args.port)
+        with connect(args.db) as db:
+            conflict = study_conflict(db, args.study)
+        if conflict:
+            parser.error(conflict)
+        serve(args.db, args.host, args.port, args.study, args.play_limit)
     return 0
 
 

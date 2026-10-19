@@ -92,13 +92,26 @@ coerced into Brier/ECE calculations.
 
 ### Intent Fidelity
 
-Intent Fidelity is documented but not implemented. Missing elements include:
+Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
 
-- a sanitized intent-manifest contract;
-- blinded viewer-recovery questions;
-- independent coder comparison;
-- thesis, hook, proof, offer, CTA, and critical-beat survival metrics;
-- separation between observable recovery and perceived persuasion.
+- intent-record contract `2.0.0`, matching the committed nested envelope of
+  the sealed records (structure checked in the PR #23 review), validated by
+  `scripts/verify_intent_reveal.py` after the commitment check;
+- blinded viewer capture: `serve --study intent`, a recall form with certainty
+  and “could not tell”, a server-held play limit that survives reload
+  (append-only `intent_plays`), no repeat exposures, append-only
+  `intent_responses`, and idempotent receipts;
+- `export-intent`, which freezes responses by SHA-256 and closes collection;
+  the browser shows a final “collection closed” state after the freeze.
+
+Still missing:
+
+- reveal-after-freeze enforcement, the coding codebook, independent coder
+  comparison and adjudication (Sprint 3);
+- thesis, hook, proof, offer, CTA, and critical-beat survival metrics, and
+  coder agreement (Sprint 4);
+- separation between observable recovery and perceived persuasion in reporting.
+  Stage 1 collects no persuasion items.
 
 ### Failure analysis and drift
 

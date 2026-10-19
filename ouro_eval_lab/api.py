@@ -9,8 +9,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .contracts import ContractError, validate_annotation_payload
-from .store import connect, next_assignment, progress, save_annotation
+from .contracts import (
+    INTENT_MAX_PLAY_COUNT, ContractError, looks_like_phone_number, normalize_intent_response,
+    validate_annotation_payload, validate_intent_response_payload,
+)
+from .store import (
+    CollectionFrozen, PlayRefused, connect, intent_collection_frozen, intent_plays_used,
+    next_assignment, progress, record_intent_play, save_annotation, save_intent_response, saved_intent_receipt,
+)
 
 
 WEB_ROOT = Path(__file__).parent / "web"
@@ -18,6 +24,19 @@ WEB_ROOT = Path(__file__).parent / "web"
 
 class ConflictingAnnotation(ValueError):
     """The assignment has a saved judgment different from this retry."""
+
+
+def _saved_annotation_receipt(db: sqlite3.Connection, assignment_id: str, rater: str, payload: dict) -> dict | None:
+    saved = db.execute(
+        """SELECT annotation_id, completed_at, verdict, confidence,
+                  confidence_scale, severity, defect_timestamps,
+                  reason_codes, note FROM annotations
+           WHERE assignment_id=? AND rater_id=?""",
+        (assignment_id, rater),
+    ).fetchone()
+    if saved is None or not _same_saved_annotation(saved, payload):
+        return None
+    return {"annotation_id": saved["annotation_id"], "completed_at": saved["completed_at"]}
 
 
 def _same_saved_annotation(row: sqlite3.Row, payload: dict) -> bool:
@@ -68,6 +87,8 @@ def parse_byte_range(header: str | None, size: int) -> tuple[int, int] | str | N
 
 class LabHandler(BaseHTTPRequestHandler):
     db_path: Path
+    study: str = "annotation"
+    play_limit: int | None = None
 
     def _json(self, status: int, payload: object) -> None:
         body = json.dumps(payload, sort_keys=True).encode()
@@ -84,6 +105,8 @@ class LabHandler(BaseHTTPRequestHandler):
         value = query.get("rater", [""])[0].strip()
         if not value or len(value) > 80 or not all(ch.isalnum() or ch in "-_" for ch in value):
             raise ValueError("rater must be a pseudonymous ID using letters, numbers, - or _")
+        if looks_like_phone_number(value):
+            raise ValueError("rater must be a pseudonymous ID, not a phone number")
         return value
 
     def do_GET(self) -> None:  # noqa: N802
@@ -91,12 +114,19 @@ class LabHandler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         try:
             if parsed.path == "/api/health":
-                return self._json(200, {"status": "ok", "synthetic_demo": True})
+                return self._json(200, {"status": "ok", "synthetic_demo": True, "study": self.study})
             if parsed.path == "/api/next":
                 rater = self._rater(query)
+                repeats = self.study != "intent"
+                plays_used = None
                 with connect(self.db_path) as db:
-                    assignment = next_assignment(db, rater)
-                    state = progress(db, rater)
+                    # After the freeze no assignment is offered: nothing could be saved.
+                    closed = self.study == "intent" and intent_collection_frozen(db)
+                    assignment = None if closed else next_assignment(db, rater, repeats=repeats)
+                    state = progress(db, rater, repeats=repeats)
+                    if assignment and self.study == "intent":
+                        # Restored on every reload, so re-entry never resets exposure.
+                        plays_used = intent_plays_used(db, assignment["assignment_id"])
                 if assignment:
                     # Source IDs can encode the answer (for example CLEAN).
                     # Only send presentation fields; preserve canonical identity
@@ -106,7 +136,12 @@ class LabHandler(BaseHTTPRequestHandler):
                     )}
                     assignment["review_label"] = f"Item {assignment['sequence'] + 1:03d}"
                     assignment["media_url"] = f"/api/media/{assignment['assignment_id']}?rater={rater}"
-                return self._json(200, {"assignment": assignment, "progress": state})
+                # The study mode is a server setting, never an artifact field.
+                return self._json(200, {
+                    "assignment": assignment, "progress": state,
+                    "study": self.study, "play_limit": self.play_limit, "plays_used": plays_used,
+                    "collection_closed": closed,
+                })
             if parsed.path.startswith("/api/media/"):
                 assignment_id = parsed.path.rsplit("/", 1)[-1]
                 rater = self._rater(query)
@@ -157,49 +192,120 @@ class LabHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
-        try:
-            if not parsed.path.startswith("/api/annotations/"):
-                return self._json(404, {"error": "not found"})
-            rater = self._rater(query)
-            length = int(self.headers.get("Content-Length", "0"))
-            if length <= 0 or length > 8192:
-                raise ValueError("invalid request size")
-            payload = json.loads(self.rfile.read(length))
-            if not isinstance(payload, dict):
-                raise ContractError("annotation must be one JSON object")
+        # Each server runs one study, so a rater can never complete an
+        # assignment through the other study's form.
+        if self.study == "intent" and parsed.path.startswith("/api/intent-responses/"):
+            return self._post_intent_response(parsed.path, query)
+        if self.study == "intent" and parsed.path.startswith("/api/intent-plays/"):
+            return self._post_intent_play(parsed.path, query)
+        if self.study == "annotation" and parsed.path.startswith("/api/annotations/"):
+            return self._post_annotation(parsed.path, query)
+        return self._json(404, {"error": "not found"})
+
+    def _read_payload(self, max_bytes: int) -> dict:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0 or length > max_bytes:
+            raise ValueError("invalid request size")
+        payload = json.loads(self.rfile.read(length))
+        if not isinstance(payload, dict):
+            raise ContractError("submission must be one JSON object")
+        return payload
+
+    def _post_annotation(self, path: str, query: dict[str, list[str]]) -> None:
+        def prepare() -> dict:
+            payload = self._read_payload(8192)
             validate_annotation_payload(payload)
             if not isinstance(payload.get("note", ""), str):
                 raise ContractError("note must be a string")
-            assignment_id = parsed.path.rsplit("/", 1)[-1]
+            return payload
+
+        self._post_with_receipt(
+            path, query, prepare, save=save_annotation,
+            saved_receipt=_saved_annotation_receipt,
+            conflict="assignment already completed with a different annotation",
+            retry_hint="retry the exact same annotation",
+        )
+
+    def _post_intent_response(self, path: str, query: dict[str, list[str]]) -> None:
+        def prepare() -> dict:
+            payload = self._read_payload(16384)
+            validate_intent_response_payload(payload, self.play_limit)
+            return normalize_intent_response(payload)
+
+        def save(db, assignment_id, rater, normalized):
+            return save_intent_response(db, assignment_id, rater, normalized, self.play_limit)
+
+        self._post_with_receipt(
+            path, query, prepare, save=save, saved_receipt=saved_intent_receipt,
+            conflict="assignment already completed with a different response",
+            retry_hint="retry the exact same response",
+        )
+
+    def _post_intent_play(self, path: str, query: dict[str, list[str]]) -> None:
+        """Record one play start before the clip plays.
+
+        201 records a new play, 200 replays an already-recorded play_number,
+        409 refuses (limit reached, completed, out of order, or frozen) with the
+        durable count, 400 rejects before writing, and 503 has an unknown outcome.
+        """
+        try:
+            rater = self._rater(query)
+            payload = self._read_payload(256)
+            if set(payload) != {"play_number"}:
+                raise ContractError("play request must contain exactly play_number")
+            play_number = payload["play_number"]
+            if type(play_number) is not int or not 1 <= play_number <= INTENT_MAX_PLAY_COUNT:
+                raise ContractError(f"play_number must be an integer from 1 to {INTENT_MAX_PLAY_COUNT}")
+            assignment_id = path.rsplit("/", 1)[-1]
+            with connect(self.db_path) as db:
+                db.execute("BEGIN IMMEDIATE")
+                try:
+                    result = record_intent_play(db, assignment_id, rater, play_number, self.play_limit)
+                except (PlayRefused, CollectionFrozen) as exc:
+                    refusal = {"error": str(exc), "plays_used": intent_plays_used(db, assignment_id)}
+                    if isinstance(exc, CollectionFrozen):
+                        refusal["collection_closed"] = True
+                    return self._json(HTTPStatus.CONFLICT, refusal)
+            return self._json(HTTPStatus.OK if result.get("replayed") else HTTPStatus.CREATED, result)
+        except sqlite3.OperationalError:
+            return self._json(HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "play status unknown; retry the same play_number"
+            })
+        except (ValueError, ContractError, json.JSONDecodeError) as exc:
+            return self._json(400, {"error": str(exc)})
+
+    def _post_with_receipt(self, path, query, prepare, save, saved_receipt, conflict, retry_hint) -> None:
+        """Save once per assignment; an exact retry replays the original receipt.
+
+        201 is a new write, 200 an exact replay, 409 a different submission
+        for a completed assignment or a frozen collection, 400 a definite
+        pre-write rejection, and 503 a storage error with an unknown outcome.
+        A frozen collection's 409 sets ``collection_closed``: nothing was
+        written and no retry can succeed, so the client may stop retrying.
+        """
+        try:
+            rater = self._rater(query)
+            payload = prepare()
+            assignment_id = path.rsplit("/", 1)[-1]
             with connect(self.db_path) as db:
                 # An aborted browser request does not prove its earlier write
                 # rolled back. Serialize the initial write and an exact retry
                 # against the same assignment before returning any receipt.
                 db.execute("BEGIN IMMEDIATE")
                 try:
-                    result = save_annotation(db, assignment_id, rater, payload)
+                    result = save(db, assignment_id, rater, payload)
                     status = HTTPStatus.CREATED
                 except ValueError as exc:
                     if str(exc) != "assignment already completed":
                         raise
-                    saved = db.execute(
-                        """SELECT annotation_id, completed_at, verdict, confidence,
-                                  confidence_scale, severity, defect_timestamps,
-                                  reason_codes, note FROM annotations
-                           WHERE assignment_id=? AND rater_id=?""",
-                        (assignment_id, rater),
-                    ).fetchone()
-                    if saved is None or not _same_saved_annotation(saved, payload):
-                        raise ConflictingAnnotation(
-                            "assignment already completed with a different annotation"
-                        ) from exc
-                    result = {
-                        "annotation_id": saved["annotation_id"],
-                        "completed_at": saved["completed_at"],
-                        "replayed": True,
-                    }
+                    receipt = saved_receipt(db, assignment_id, rater, payload)
+                    if receipt is None:
+                        raise ConflictingAnnotation(conflict) from exc
+                    result = {**receipt, "replayed": True}
                     status = HTTPStatus.OK
             return self._json(status, result)
+        except CollectionFrozen as exc:
+            return self._json(HTTPStatus.CONFLICT, {"error": str(exc), "collection_closed": True})
         except ConflictingAnnotation as exc:
             return self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
         except sqlite3.OperationalError:
@@ -207,7 +313,7 @@ class LabHandler(BaseHTTPRequestHandler):
             # outcome from the client's perspective. Only the same frozen
             # payload may be retried; never tell the browser no write occurred.
             return self._json(HTTPStatus.SERVICE_UNAVAILABLE, {
-                "error": "save status unknown; retry the exact same annotation"
+                "error": f"save status unknown; {retry_hint}"
             })
         except (ValueError, ContractError, json.JSONDecodeError) as exc:
             return self._json(400, {"error": str(exc)})
@@ -230,8 +336,13 @@ class LabHandler(BaseHTTPRequestHandler):
         print(f"lab-api {self.address_string()} {format % args}")
 
 
-def serve(db_path: Path, host: str, port: int) -> None:
-    handler = type("ConfiguredLabHandler", (LabHandler,), {"db_path": db_path})
+def serve(
+    db_path: Path, host: str, port: int, study: str = "annotation", play_limit: int | None = None,
+) -> None:
+    handler = type("ConfiguredLabHandler", (LabHandler,), {
+        "db_path": db_path, "study": study,
+        "play_limit": play_limit if study == "intent" else None,
+    })
     server = ThreadingHTTPServer((host, port), handler)
-    print(f"Evaluation Lab listening on http://{host}:{port}")
+    print(f"Evaluation Lab ({study} study) listening on http://{host}:{port}")
     server.serve_forever()

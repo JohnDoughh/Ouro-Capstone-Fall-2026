@@ -4,12 +4,14 @@ import json
 import hashlib
 import mimetypes
 import sqlite3
+from contextlib import closing
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .contracts import ContractError, validate_annotation_payload
+from .runner import EXPORT_FIELDS
 from .store import connect, next_assignment, progress, save_annotation
 
 
@@ -92,6 +94,29 @@ class LabHandler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/api/health":
                 return self._json(200, {"status": "ok", "synthetic_demo": True})
+            if parsed.path == "/api/saved-annotations":
+                rater = self._rater(query)
+                with closing(sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+                    db.row_factory = sqlite3.Row
+                    db.execute("BEGIN")
+                    counts = db.execute(
+                        "SELECT COUNT(*) total, SUM(completed_at IS NULL) pending FROM assignments WHERE rater_id=?",
+                        (rater,),
+                    ).fetchone()
+                    if not counts["total"] or counts["pending"]:
+                        return self._json(403, {"error": "Finish your assignment queue before viewing saved annotations"})
+                    fields = ", ".join("n." + field for field in EXPORT_FIELDS)
+                    rows = [dict(row) for row in db.execute(
+                        "SELECT " + fields + ", x.artifact_id, a.sequence FROM annotations n "
+                        "JOIN assignments a ON a.assignment_id=n.assignment_id "
+                        "AND a.rater_id=n.rater_id AND a.artifact_sha256=n.artifact_sha256 "
+                        "JOIN artifacts x ON x.sha256=n.artifact_sha256 "
+                        "WHERE n.rater_id=? ORDER BY a.sequence", (rater,),
+                    )]
+                for row in rows:
+                    row["reason_codes"] = json.loads(row["reason_codes"])
+                    row["review_label"] = f"Item {row.pop('sequence') + 1:03d}"
+                return self._json(200, {"schema_version": "saved-review-v1", "annotations": rows})
             if parsed.path == "/api/next":
                 rater = self._rater(query)
                 with connect(self.db_path) as db:

@@ -109,3 +109,18 @@ behavior, not ground-truth defect presence.
 The evaluator answer must remain hidden from raters until their blinded human
 judgments are frozen. Use `inspect-avc` only for post-review sponsor/student
 analysis of an authorized sanitized evaluation file.
+
+## Completed reviewer inspection v1
+
+`GET /api/saved-annotations?rater=<pseudonym>` returns `schema_version:
+"saved-review-v1"` and an `annotations` array only after that rater's entire queue
+is complete. Missing/unfinished queues receive 403. Each record contains the
+existing annotation export fields plus `artifact_id` and `review_label`.
+It is read-only, uncached, and excludes fixture truth, defect family, evaluator
+answers and other raters' judgments. `reason_codes` are reviewer-selected broad
+categories, not fixture defect labels. The existing JSON/CSV export contract is
+unchanged. This additive inspection contract does not migrate saved data.
+
+This synthetic local demo uses pseudonymous IDs, not authentication. Completion
+of one queue is not a study-wide freeze or a security boundary. Real participant
+collection still requires the access and role controls in CURRENT_STATUS.md.

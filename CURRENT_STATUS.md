@@ -66,10 +66,11 @@ The current interface captures:
 - confidence on a five-point scale;
 - severity from 0 (none) to 3 (severe);
 - optional defect timestamp(s);
+- optional structured evidence on `HOLD` (Team A rubric version, defect family ID, region, reference SHA-256, evidence description), stored and exported as entered; the browser form does not collect it yet;
 - four generic reason groups;
 - an optional note.
 
-It does not yet capture the rest of the required final ontology, including commercial-meaning recovery, suspected failure origin, rubric version, or structured evidence. Existing annotations from before timestamp capture are retained with unknown timestamps and identified as legacy confidence in exports.
+It does not yet capture the rest of the required final ontology, including commercial-meaning recovery or suspected failure origin. Existing annotations from before timestamp capture are retained with unknown timestamps and identified as legacy confidence in exports.
 
 ### Adjudication
 
@@ -92,13 +93,26 @@ coerced into Brier/ECE calculations.
 
 ### Intent Fidelity
 
-Intent Fidelity is documented but not implemented. Missing elements include:
+Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
 
-- a sanitized intent-manifest contract;
-- blinded viewer-recovery questions;
-- independent coder comparison;
-- thesis, hook, proof, offer, CTA, and critical-beat survival metrics;
-- separation between observable recovery and perceived persuasion.
+- intent-record contract `2.0.0`, matching the committed nested envelope of
+  the sealed records (structure checked in the PR #23 review), validated by
+  `scripts/verify_intent_reveal.py` after the commitment check;
+- blinded viewer capture: `serve --study intent`, a recall form with certainty
+  and “could not tell”, a server-held play limit that survives reload
+  (append-only `intent_plays`), no repeat exposures, append-only
+  `intent_responses`, and idempotent receipts;
+- `export-intent`, which freezes responses by SHA-256 and closes collection;
+  the browser shows a final “collection closed” state after the freeze.
+
+Still missing:
+
+- reveal-after-freeze enforcement, the coding codebook, independent coder
+  comparison and adjudication (Sprint 3);
+- thesis, hook, proof, offer, CTA, and critical-beat survival metrics, and
+  coder agreement (Sprint 4);
+- separation between observable recovery and perceived persuasion in reporting.
+  Stage 1 collects no persuasion items.
 
 ### Failure analysis and drift
 

@@ -10,3 +10,10 @@
 .confidence-options small{font-size:.58rem}
 .scale-options input:checked+span{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint);color:var(--mint)}
 .scale-options input:focus-visible+span{outline:2px solid var(--mint);outline-offset:2px}
+.intent-item{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
+.intent-item textarea{margin:0 0 8px}
+.certainty-options{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cant-tell{display:inline-flex;gap:6px;align-items:center;margin-top:8px;color:var(--muted)}
+.cant-tell input{accent-color:var(--mint)}
+.hint{color:var(--muted);font-size:.9rem}
+.play-row{display:flex;gap:12px;align-items:center;margin-top:12px;color:var(--muted)}

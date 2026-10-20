@@ -124,9 +124,15 @@ This example is fictional and says nothing about the sealed records:
   `problem`, `product`, `key_benefit`, `support`, `call_to_action`, `tone`.
   These are the pilot's coding units. Mappings to thesis/hook/proof/offer/CTA
   are derived interpretations, not part of the record.
-- `delivery_codes` is a nonempty list of unique codes from `explicit_text`,
+- The original committed `delivery_codes` field may be a nonempty descriptive
+  metadata string (at most 500 characters, with no URLs or contact details).
+  It is not parsed as an allow-list: each component's `delivery` must still
+  match an exact controlled code. This preserves the original sealed envelope
+  without rewriting any record or commitment.
+- Alternatively, `delivery_codes` is a nonempty list of unique codes from `explicit_text`,
   `implied`, `visual_only`, `partially_delivered`, `omitted_in_edit`,
-  `not_intended`. Every `delivery` value must be one of the record's codes.
+  `not_intended`. In this list form, every `delivery` value must be one of
+  the record's listed codes; descriptive metadata uses the full controlled set.
 - Each `intended` string is at most 300 characters. It may be empty only when
   its delivery is `not_intended`; `omitted_in_edit` was intended, so its text
   is required.

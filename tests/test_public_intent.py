@@ -87,6 +87,22 @@ class PublicIntentClipTests(unittest.TestCase):
             self.assertIn("forbidden/unknown fields: prompt", problems[0])
             self.assertEqual(reveal.verify(commitments, root, manifest, schema=False), [])
 
+    def test_descriptive_metadata_keeps_commitment_and_identity_checks(self):
+        reveal = _load("verify_intent_reveal")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"artifacts": [{"relative_path": "clipX.mp4", "artifact_id": "syn-x"}]}))
+            path = root / "clipX.intent.json"
+            body = json.dumps(fictional_record(delivery_codes="Fictional metadata description.")).encode()
+            path.write_bytes(body)
+            commitments = root / "c.sha256"
+            commitments.write_text(f"{hashlib.sha256(body).hexdigest()}  clipX.intent.json\n")
+            self.assertEqual(reveal.verify(commitments, root, manifest), [])
+            self.assertEqual(path.read_bytes(), body)
+            path.write_bytes(body + b" ")
+            self.assertIn("SHA-256 does not match", reveal.verify(commitments, root, manifest)[0])
+
 
 if __name__ == "__main__":
     unittest.main()

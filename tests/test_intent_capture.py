@@ -112,6 +112,24 @@ class IntentRecordContractTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             validate_intent_record(old)
 
+    def test_accepts_descriptive_delivery_metadata_without_rewriting_record(self):
+        record = intent_record(delivery_codes="Fictional delivery vocabulary description.")
+        before = json.dumps(record, sort_keys=True)
+        validate_intent_record(record)
+        self.assertEqual(intent_coding_units(record)["support"]["delivery"], "explicit_text")
+        self.assertEqual(json.dumps(record, sort_keys=True), before)
+
+    def test_description_never_authorizes_uncontrolled_component_codes(self):
+        for code in ("spoken", "explicit", "", [], True):
+            with self.subTest(code=code), self.assertRaises(ContractError):
+                validate_intent_record(intent_record(
+                    delivery_codes="Fictional description mentions spoken and explicit.",
+                    delivery={"support": code},
+                ))
+        for metadata in ("", " ", "x" * 501, "https://example.test", "a@b.test", {}, True, 4):
+            with self.subTest(metadata=metadata), self.assertRaises(ContractError):
+                validate_intent_record(intent_record(delivery_codes=metadata))
+
     def test_rejects_unknown_missing_oversized_and_uncontrolled_values(self):
         record = intent_record()
         del record["intended"]["support"]

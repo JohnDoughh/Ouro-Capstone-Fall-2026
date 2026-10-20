@@ -349,15 +349,22 @@ def validate_intent_record(record: dict[str, Any]) -> None:
     _utc(record["frozen_at"], "intent record frozen_at")
     _validate_record_text(record["note"], "intent record note", INTENT_NOTE_MAX, required=False)
     codes = record["delivery_codes"]
-    if (not isinstance(codes, list) or not codes
+    if isinstance(codes, str):
+        # The original committed envelope stores a descriptive metadata string.
+        # Never parse that description as an allow-list or rewrite sealed bytes.
+        _validate_record_text(codes, "intent record delivery_codes", INTENT_NOTE_MAX)
+        allowed_codes = INTENT_DELIVERY_CODES
+    elif (not isinstance(codes, list) or not codes
             or any(not isinstance(code, str) or code not in INTENT_DELIVERY_CODES for code in codes)
             or len(set(codes)) != len(codes)):
         raise ContractError("intent record delivery_codes must be unique controlled delivery codes")
+    else:
+        allowed_codes = codes
     intended = _component_map(record["intended"], "intent record intended")
     delivery = _component_map(record["delivery"], "intent record delivery")
     for field in INTENT_FIELDS:
         code = delivery[field]
-        if not isinstance(code, str) or code not in codes:
+        if not isinstance(code, str) or code not in allowed_codes:
             raise ContractError(f"intent record delivery.{field} is not one of the record's delivery_codes")
         # omitted_in_edit was intended, so only not_intended may leave the text empty.
         _validate_record_text(

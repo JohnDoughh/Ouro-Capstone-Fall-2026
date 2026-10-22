@@ -1,0 +1,17 @@
+{
+  "annotation_contract_version": "2.1.0",
+  "annotation_id": "fictional-dropout-review-001",
+  "artifact_id": "syn-tone-b",
+  "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+  "completed_at": "2026-01-01T00:01:00+00:00",
+  "confidence": 4,
+  "confidence_scale": "1-5",
+  "defect_timestamps": "00:04-00:05",
+  "note": "Invented public software-test response for a generated tone dropout; not a person's observation.",
+  "provenance": "fictional-test-only",
+  "rater_id": "fictional-demo-rater",
+  "reason_codes": ["audio_integrity"],
+  "severity": 2,
+  "started_at": "2026-01-01T00:00:00+00:00",
+  "verdict": "HOLD"
+}

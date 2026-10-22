@@ -1,3 +1,9 @@
 # Preserve committed hash-bound output bytes on every checkout.
 data/public_playable/simulated_evaluator_outputs.json -text
 data/public_playable/simulated_evaluator_outputs.sha256 -text
+data/public_playable/manifest.json -text
+data/public_playable/reference.sha256 -text
+data/public_audio/manifest.json -text
+data/public_audio/audio.sha256 -text
+data/public_intent/manifest.json -text
+data/public_intent/intent_commitments.sha256 -text

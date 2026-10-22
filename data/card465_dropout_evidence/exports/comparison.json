@@ -1,0 +1,12 @@
+{
+  "artifact_id": "syn-tone-b",
+  "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+  "comparison_version": "1.0.0",
+  "disclaimer": "Fictional annotation and simulated evaluator demonstration; no actual human judgment or research finding.",
+  "human_annotation_id": "fictional-dropout-review-001",
+  "human_verdict": "HOLD",
+  "simulated_evaluator_alias": "eval-simulated-dropout-v1",
+  "simulated_evaluator_verdict": "HOLD",
+  "synthetic_demo": true,
+  "verdict_match": true
+}

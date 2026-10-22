@@ -1,0 +1,3 @@
+# Preserve committed hash-bound output bytes on every checkout.
+data/public_playable/simulated_evaluator_outputs.json -text
+data/public_playable/simulated_evaluator_outputs.sha256 -text

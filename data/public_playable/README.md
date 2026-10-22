@@ -14,6 +14,10 @@ python3 -m ouro_eval_lab.cli ingest --db data/playable-demo.db --manifest data/p
 python3 -m ouro_eval_lab.cli serve --db data/playable-demo.db --port 8080
 ```
 
-Open the local browser lab, use a fictional rater ID, and play the assigned clip. This is a synthetic development demo only. Research with real participants still requires the separately documented FIU review gates. No evaluator output is included for these clips; never treat the fixture's seeded label as an AVC verdict or probability.
+Open the local browser lab, use a fictional rater ID, and play the assigned clip. This is a synthetic development demo only. Research with real participants still requires the separately documented FIU review gates.
+
+`simulated_evaluator_outputs.json` holds one simulated evaluator output per clip, keyed by the clip's SHA-256 in `manifest.json`, with alias `eval-sim-orbit` and evidence code `simulated-test-only`. It is not AVC output and not a finding about Ouro or AVC, and its confidence is not an AVC probability. It was frozen before any blinded rating of these clips, and like `manifest.json` it must stay away from blinded viewers. Its digest is pinned in `simulated_evaluator_outputs.sha256` and checked by `tests/test_orbit_simulated_outputs.py`.
+
+The repository's `.gitattributes` preserves the exact bytes of the simulated output and its digest even when Git uses `core.autocrlf=true`. Do not regenerate or refreeze those outputs to repair a checkout checksum failure. This checkout protection does not replace a teammate's independent workflow verification.
 
 To regenerate, install Pillow and FFmpeg, then run `python3 scripts/generate_playable_visual_demo.py --out /tmp/orbit-reproduction`. The committed files were made with Python 3.12, Pillow 12.3.0, FFmpeg 6.1.1 and DejaVu Sans. Re-encoded MP4 bytes may differ on other encoder versions, so verify the committed media against the committed manifest before using it. The seed is `20260923`; the PNG and MP4 hashes are pinned in the manifest/reference digest.

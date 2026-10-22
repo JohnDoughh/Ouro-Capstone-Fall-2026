@@ -7,3 +7,6 @@ data/public_audio/manifest.json -text
 data/public_audio/audio.sha256 -text
 data/public_intent/manifest.json -text
 data/public_intent/intent_commitments.sha256 -text
+data/card465_dropout_evidence/*.json -text
+data/card465_dropout_evidence/exports/*.json -text
+data/card465_dropout_evidence/exports/SHA256SUMS -text

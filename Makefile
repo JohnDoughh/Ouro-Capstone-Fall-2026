@@ -1,4 +1,4 @@
-.PHONY: bootstrap run benchmark test check clean
+.PHONY: bootstrap run benchmark card465-evidence test check clean
 
 PYTHON ?= python3
 SEED ?= 20260825
@@ -11,6 +11,9 @@ run:
 
 benchmark:
 	$(PYTHON) -m ouro_eval_lab.cli benchmark --manifest data/fixtures/manifest.json --outputs data/fixtures/evaluator_outputs.json --out data/exports/report.json
+
+card465-evidence:
+	$(PYTHON) scripts/build_card465_dropout_evidence.py
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v

@@ -24,11 +24,13 @@
       <article class="card media-card">
         <div class="meta"><span id="modality"></span><span id="artifact-id"></span></div>
         <div id="media" class="media"></div>
+        <div id="play-row" class="play-row hidden"><button id="play-clip" type="button">Play clip</button><span id="plays-left"></span></div>
       </article>
       <aside class="card decision-card">
-        <p class="kicker">Your independent judgment</p>
-        <h2>Should this artifact proceed?</h2>
+        <p id="decision-kicker" class="kicker">Your independent judgment</p>
+        <h2 id="decision-title">Should this artifact proceed?</h2>
         <form id="annotation-form">
+          <div id="annotation-fields" data-study="annotation">
           <fieldset><legend>Verdict</legend><div class="choices">
             <label><input type="radio" name="verdict" value="PASS" required><span>PASS<small>No target defect</small></span></label>
             <label><input type="radio" name="verdict" value="HOLD"><span>HOLD<small>Target defect present</small></span></label>
@@ -55,6 +57,88 @@
             <label><input type="checkbox" name="reason" value="intent_integrity">Intent integrity</label>
           </div></fieldset>
           <label>Optional note<textarea id="note" maxlength="500" rows="3"></textarea></label>
+          </div>
+          <div id="intent-fields" data-study="intent" class="hidden">
+          <p class="hint">Answer from the clip alone, in your own words. Rate how sure you are, or tick “Could not tell”. Do not include names, emails or phone numbers.</p>
+          <fieldset class="intent-item"><legend>Who is this ad for?</legend>
+            <textarea name="audience_recall" maxlength="300" rows="2" aria-label="Who is this ad for?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="audience_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="audience_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="audience_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="audience_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="audience_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="audience_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>What problem or situation does it address?</legend>
+            <textarea name="problem_recall" maxlength="300" rows="2" aria-label="What problem or situation does it address?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="problem_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="problem_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="problem_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="problem_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="problem_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="problem_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>What product is it about?</legend>
+            <textarea name="product_recall" maxlength="300" rows="2" aria-label="What product is it about?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="product_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="product_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="product_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="product_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="product_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="product_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>What is the main benefit it promises?</legend>
+            <textarea name="key_benefit_recall" maxlength="300" rows="2" aria-label="What is the main benefit it promises?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="key_benefit_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="key_benefit_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="key_benefit_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="key_benefit_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="key_benefit_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="key_benefit_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>What detail or demonstration backs that up?</legend>
+            <textarea name="support_recall" maxlength="300" rows="2" aria-label="What detail or demonstration backs that up?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="support_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="support_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="support_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="support_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="support_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="support_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>What does it ask you to do?</legend>
+            <textarea name="call_to_action_recall" maxlength="300" rows="2" aria-label="What does it ask you to do?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="call_to_action_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="call_to_action_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="call_to_action_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="call_to_action_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="call_to_action_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="call_to_action_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <fieldset class="intent-item"><legend>How would you describe its tone?</legend>
+            <textarea name="tone_recall" maxlength="300" rows="2" aria-label="How would you describe its tone?"></textarea>
+            <div class="scale-options confidence-options certainty-options">
+              <label><input type="radio" name="tone_certainty" value="1" aria-label="Certainty 1, guessing"><span><b>1</b><small>Guessing</small></span></label>
+              <label><input type="radio" name="tone_certainty" value="2" aria-label="Certainty 2, unsure"><span><b>2</b><small>Unsure</small></span></label>
+              <label><input type="radio" name="tone_certainty" value="3" aria-label="Certainty 3, fairly sure"><span><b>3</b><small>Fairly sure</small></span></label>
+              <label><input type="radio" name="tone_certainty" value="4" aria-label="Certainty 4, sure"><span><b>4</b><small>Sure</small></span></label>
+              <label><input type="radio" name="tone_certainty" value="5" aria-label="Certainty 5, certain"><span><b>5</b><small>Certain</small></span></label>
+            </div>
+            <label class="cant-tell"><input type="checkbox" name="tone_could_not_tell" value="1">Could not tell</label>
+          </fieldset>
+          <label>Anything else it was trying to get across? (optional)<textarea name="other_beats" maxlength="500" rows="2"></textarea></label>
+          </div>
           <p id="error" class="error" role="alert"></p>
           <button id="retry-load" type="button" class="hidden">Retry loading assignment</button>
           <button id="retry-save" type="button" class="hidden">Retry the same judgment</button>
@@ -62,6 +146,7 @@
         </form>
       </aside>
     </section>
+    <section id="closed" class="card narrow hidden"><p class="kicker">Collection closed</p><h2>This study is no longer collecting responses.</h2><p id="closed-unsaved" class="hidden">Your last answer was not saved because responses had already been frozen for analysis.</p><p>Answers you submitted before the freeze are preserved. You can close this tab.</p></section>
     <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p>
       <button id="load-saved" type="button" aria-expanded="false" aria-controls="saved-panel">Show annotations</button>
       <p id="saved-error" class="error" role="alert"></p>

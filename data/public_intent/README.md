@@ -10,7 +10,7 @@ Keep this README and `manifest.json` away from viewers during blinded viewing. V
 - **Withheld by the sponsor until reveal:** the four frozen intent records (`clip01.intent.json` … `clip04.intent.json`). They were written and hashed before this repository saw the clips. Each record contains a random salt, so the commitment cannot be guessed from its contents.
 - The manifest's `defect_present: false` only means no production defect was seeded. It says nothing about whether the intent comes through. That is the question Team C measures.
 
-Each record uses the same bounded fields: `audience`, `problem`, `product`, `key_benefit`, `support`, `call_to_action` and `tone`. Each field also has a sponsor-coded `delivery` value, one of `explicit_text`, `implied`, `visual_only`, `partially_delivered`, `omitted_in_edit` or `not_intended`. The clips differ on purpose in how much of the intent they deliver. Which clip does what stays sealed until reveal.
+Each record uses the same bounded fields: `audience`, `problem`, `product`, `key_benefit`, `support`, `call_to_action` and `tone`, nested under `intended`. Each field also has a sponsor-coded value under `delivery`, one of `explicit_text`, `implied`, `visual_only`, `partially_delivered`, `omitted_in_edit` or `not_intended`. The clips differ on purpose in how much of the intent they deliver. Which clip does what stays sealed until reveal.
 
 ## Procedure
 
@@ -18,15 +18,15 @@ Each record uses the same bounded fields: `audience`, `problem`, `product`, `key
    ```sh
    python3 -m ouro_eval_lab.cli verify --manifest data/public_intent/manifest.json
    python3 -m ouro_eval_lab.cli ingest --db data/intent-demo.db --manifest data/public_intent/manifest.json
-   python3 -m ouro_eval_lab.cli serve --db data/intent-demo.db --port 8080
+   python3 -m ouro_eval_lab.cli serve --db data/intent-demo.db --port 8080 --study intent --play-limit 2
    ```
-2. **Blinded response.** The viewer watches a clip and records a free-recall answer in the note field *before* anything is revealed. Team C writes the actual prompts. A minimal version: who is it for, what problem, what product, main benefit, what am I asked to do. The PASS/HOLD/UNSURE verdict and confidence are production-quality fields, not intent scores.
-3. **Freeze responses:** `python3 -m ouro_eval_lab.cli export --db data/intent-demo.db --out data/exports/intent-responses.json`, and record that file's SHA-256.
+2. **Blinded response.** In intent mode the lab shows Team C's recall form instead of PASS/HOLD. The viewer plays the clip with a counted Play button (two plays by default) and, for each of audience, problem, product, main benefit, support, call to action and tone, writes what they recalled and how sure they are, or ticks “Could not tell”. Responses are append-only (`docs/DATA_CONTRACT.md`, “Intent fidelity”).
+3. **Freeze responses:** `python3 -m ouro_eval_lab.cli export-intent --db data/intent-demo.db --out data/exports/intent-responses.json`. It prints and records the file's SHA-256 and closes collection. Record that SHA-256 before step 4.
 4. **Reveal.** The sponsor releases the four records. Anyone checks them against the commitments:
    ```sh
    python3 scripts/verify_intent_reveal.py --records /path/to/revealed/records
    ```
-   Any mismatch invalidates the reveal.
+   Any mismatch invalidates the reveal. The script also checks each matching record against the intent-record contract (`docs/DATA_CONTRACT.md`); use `--skip-schema` to check commitments alone.
 5. **Separate coding.** Coders who did not watch as viewers compare each frozen response to the record, field by field, with Team C's codebook. Agreement between coders is reported. Nothing here is an AVC score or a probability.
 
 ## Limits

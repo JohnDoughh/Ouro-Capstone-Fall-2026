@@ -62,6 +62,11 @@ make check
 
 Aggregate agreement is not exposed by the annotation web server during collection. A person with local access to the lab database can generate the offline report after the appropriate review stage; this command does not establish participant-release authority.
 
+Database connections opened with `with connect(path) as db` commit on success or
+roll back on an exception, then close before returning. This releases Windows
+file handles without waiting for garbage collection. Keep database operations
+inside that block; callers opening a connection directly must close it explicitly.
+
 ## Demonstration workflow
 
 1. `seed` generates the same synthetic artifacts from the same seed.

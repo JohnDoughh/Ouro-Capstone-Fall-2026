@@ -80,10 +80,21 @@ class PlayRefused(Exception):
     """A play start the server will not record: limit reached, completed, or out of order."""
 
 
+class ManagedConnection(sqlite3.Connection):
+    """Finish the transaction and release its file handle on context exit."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
+    """Use as a context manager, or explicitly close when managing it manually."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
+    connection = sqlite3.connect(path, factory=ManagedConnection)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection

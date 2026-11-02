@@ -50,6 +50,22 @@
             <label><input type="radio" name="severity" value="3" aria-label="Severity 3, severe" required><span><b>3</b><small>Severe</small></span></label>
           </div></fieldset>
           <label>Defect timestamp(s)<input id="defect-timestamps" name="defect_timestamps" maxlength="240" placeholder="00:04–00:05; 00:08"></label>
+          <fieldset id="evidence-fields" class="evidence-fields hidden"><legend>Defect evidence</legend>
+            <p class="hint">Describe what you saw. Families 3 and 4 also need the SHA-256 of the approved reference you compared against.</p>
+            <label>Rubric version<select name="rubric_version"><option value="v0.1" selected>v0.1</option></select></label>
+            <label>Defect family<select name="defect_family_id">
+              <option value="" selected>Choose a family</option>
+              <option value="1">1 · Presenter Identity Continuity</option>
+              <option value="2">2 · Face, Hand, Body, and Object Integrity</option>
+              <option value="3">3 · Product and Packaging Accuracy</option>
+              <option value="4">4 · Visible Text and Claim Accuracy</option>
+              <option value="5">5 · Scene-to-Scene Visual Continuity</option>
+              <option value="6">6 · Composition, Occlusion, and Rendering Defects</option>
+            </select></label>
+            <label>Region in the frame<input name="region" maxlength="240" placeholder="Where in the frame you saw it"></label>
+            <label>Reference SHA-256<input name="reference_id" maxlength="64" spellcheck="false" autocomplete="off" placeholder="64 hex characters"></label>
+            <label>Evidence description<textarea name="evidence_description" maxlength="500" rows="3"></textarea></label>
+          </fieldset>
           <fieldset><legend>Reason codes</legend><div class="checks">
             <label><input type="checkbox" name="reason" value="visual_integrity">Visual integrity</label>
             <label><input type="checkbox" name="reason" value="audio_integrity">Audio integrity</label>

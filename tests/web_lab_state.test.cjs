@@ -958,3 +958,90 @@ test('a play refused by a frozen collection closes without playing', async () =>
   assert.equal(video.played, undefined);
   assertClosed(lab, {unsaved: false});
 });
+
+const REFERENCE = 'a'.repeat(64);
+const pickVerdict = (lab, value) => {
+  lab.element('annotation-form').fields.verdict = value;
+  lab.element('annotation-form').listeners.change({target: {name: 'verdict', value}});
+};
+const fillEvidence = lab => Object.assign(lab.element('annotation-form').fields, {
+  rubric_version: 'v0.1', defect_family_id: '4', region: ' orange badge, lower right ',
+  reference_id: REFERENCE, evidence_description: 'Badge reads COLD 12 H, not COLD 24 H.',
+});
+const postedBody = lab => JSON.parse(lab.requests.find(request => request.method === 'POST').body);
+
+test('evidence inputs appear only for HOLD and hide again after a save', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(item('b'), 1)]);
+  await lab.signIn();
+  const evidence = lab.element('evidence-fields');
+  evidence.classList.add('hidden');
+  pickVerdict(lab, 'HOLD');
+  assert.equal(evidence.classList.contains('hidden'), false);
+  for (const verdict of ['PASS', 'UNSURE']) {
+    pickVerdict(lab, verdict);
+    assert.equal(evidence.classList.contains('hidden'), true, verdict);
+  }
+  pickVerdict(lab, 'HOLD');
+  await lab.submit();
+  assert.equal(evidence.classList.contains('hidden'), true);
+});
+
+test('HOLD sends evidence under the exact contract 2.2.0 field names', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  fillEvidence(lab);
+  await lab.submit();
+  const body = postedBody(lab);
+  assert.deepEqual(Object.keys(body).sort(), [
+    'confidence', 'defect_family_id', 'defect_timestamps', 'evidence_description', 'note',
+    'reason_codes', 'reference_id', 'region', 'rubric_version', 'severity', 'verdict',
+  ]);
+  assert.equal(body.rubric_version, 'v0.1');
+  assert.equal(body.defect_family_id, 4);
+  assert.equal(body.region, 'orange badge, lower right');
+  assert.equal(body.reference_id, REFERENCE);
+  assert.equal(body.evidence_description, 'Badge reads COLD 12 H, not COLD 24 H.');
+});
+
+test('HOLD without evidence sends no rubric version on its own', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  Object.assign(lab.element('annotation-form').fields, {rubric_version: 'v0.1', defect_family_id: ''});
+  await lab.submit();
+  const body = postedBody(lab);
+  for (const field of ['rubric_version', 'defect_family_id', 'region', 'reference_id', 'evidence_description']) {
+    assert.equal(field in body, false, field);
+  }
+});
+
+for (const verdict of ['PASS', 'UNSURE']) {
+  test(`${verdict} submits evidence empty even if HOLD inputs were filled first`, async () => {
+    const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+    await lab.signIn();
+    pickVerdict(lab, 'HOLD');
+    fillEvidence(lab);
+    pickVerdict(lab, verdict);
+    await lab.submit();
+    const body = postedBody(lab);
+    assert.equal(body.verdict, verdict);
+    for (const field of ['rubric_version', 'defect_family_id', 'region', 'reference_id', 'evidence_description']) {
+      assert.equal(field in body, false, field);
+    }
+  });
+}
+
+test('a rejected evidence value shows the server error and keeps the form editable', async () => {
+  const message = 'defect family 4 requires reference_id as 64 lowercase hex characters';
+  const lab = harness([next(item('a')), {ok: false, status: 400, body: {error: message}}]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  fillEvidence(lab);
+  lab.element('annotation-form').fields.reference_id = 'not-a-hash';
+  await lab.submit();
+  assert.equal(lab.element('error').textContent, message);
+  assert.equal(lab.element('submit').disabled, false);
+  assert.equal(lab.assignment().assignment_id, 'a');
+  assert.ok(lab.element('annotation-form').controls.every(control => !control.disabled));
+});

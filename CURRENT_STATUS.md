@@ -66,7 +66,7 @@ The current interface captures:
 - confidence on a five-point scale;
 - severity from 0 (none) to 3 (severe);
 - optional defect timestamp(s);
-- optional structured evidence on `HOLD` (Team A rubric version, defect family ID, region, reference SHA-256, evidence description), stored and exported as entered; the browser form does not collect it yet;
+- optional structured evidence on `HOLD` (Team A rubric version, defect family ID, region, reference SHA-256, evidence description), collected by the rating form only when HOLD is selected, then stored and exported as entered;
 - four generic reason groups;
 - an optional note.
 

@@ -10,6 +10,9 @@ const MAX_SAVE_BYTES = 16384;
 // The server runs one study. Each has its own endpoint and receipt field.
 const STUDY_ENDPOINTS = {annotation: '/api/annotations/', intent: '/api/intent-responses/'};
 const RECEIPT_KEYS = {annotation: 'annotation_id', intent: 'response_id'};
+// Annotation contract 2.2.0 HOLD evidence. The rubric version is sent only
+// alongside at least one other evidence value, so a bare HOLD stays valid.
+const EVIDENCE_VALUES = ['defect_family_id', 'region', 'reference_id', 'evidence_description'];
 const INTENT_LABELS = {
   audience: 'who it is for', problem: 'the problem', product: 'the product',
   key_benefit: 'the main benefit', support: 'what backs it up',
@@ -107,14 +110,14 @@ function clearAssignment() {
 
 function setJudgmentEditable(editable) {
   const form = $('annotation-form');
-  for (const control of form.querySelectorAll('input, textarea')) {
+  for (const control of form.querySelectorAll('input, textarea, select')) {
     control.disabled = true;
   }
   if (!editable) return;
   // Only the active study's controls are enabled, so hidden required inputs
   // can never block a submission or travel with it.
   const active = `[data-study="${state.study}"]`;
-  for (const control of form.querySelectorAll(`${active} input, ${active} textarea`)) {
+  for (const control of form.querySelectorAll(`${active} input, ${active} textarea, ${active} select`)) {
     control.disabled = false;
   }
 }
@@ -130,13 +133,30 @@ function showStudy(study) {
   $('submit').textContent = intent ? 'Submit answers' : 'Submit judgment';
 }
 
+function showEvidence(verdict) {
+  // PASS and UNSURE never collect evidence; the inputs stay hidden and unsent.
+  $('evidence-fields').classList[verdict === 'HOLD' ? 'remove' : 'add']('hidden');
+}
+
+function evidenceBody(form) {
+  const evidence = {};
+  for (const field of EVIDENCE_VALUES) {
+    const value = String(form.get(field) ?? '').trim();
+    if (value) evidence[field] = field === 'defect_family_id' ? Number(value) : value;
+  }
+  if (Object.keys(evidence).length) evidence.rubric_version = String(form.get('rubric_version') ?? '');
+  return evidence;
+}
+
 function annotationBody(form) {
   const reason_codes = [...document.querySelectorAll('input[name=reason]:checked')].map(input => input.value);
+  const verdict = form.get('verdict');
   return {
-    verdict: form.get('verdict'),
+    verdict,
     confidence: Number(form.get('confidence')),
     severity: Number(form.get('severity')),
     defect_timestamps: String(form.get('defect_timestamps') || '').trim(),
+    ...(verdict === 'HOLD' ? evidenceBody(form) : {}),
     reason_codes,
     note: $('note').value,
   };
@@ -304,6 +324,10 @@ $('retry-load').addEventListener('click', loadNext);
 $('retry-save').addEventListener('click', sendPendingSave);
 $('play-clip').addEventListener('click', playClip);
 
+$('annotation-form').addEventListener('change', event => {
+  if (event.target?.name === 'verdict') showEvidence(event.target.value);
+});
+
 $('annotation-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (!state.assignment || state.pendingSave) return;
@@ -395,6 +419,7 @@ async function sendPendingSave() {
     discardRecoveryRecord();
     state.pendingSave = null;
     pending.form.reset();
+    showEvidence(null);
     await loadNext();
   } catch (error) {
     if (state.pendingSave !== pending) return;
@@ -567,6 +592,12 @@ function renderSavedAnnotations(records) {
       ['Confidence', `${record.confidence} / 5 (scale ${record.confidence_scale})`],
       ['Defect timestamp', record.defect_timestamps || 'None recorded'],
       ['Reason codes', record.reason_codes.length ? record.reason_codes.join(', ') : 'None selected'],
+      ...(record.defect_family_id == null ? [] : [
+        ['Defect family', `${record.defect_family_id} (rubric ${record.rubric_version})`],
+        ['Region', record.region || 'None recorded'],
+        ['Reference SHA-256', record.reference_id || 'None recorded'],
+        ['Evidence', record.evidence_description || 'None recorded'],
+      ]),
     ]) {
       const field = document.createElement('div');
       field.append(savedText('dt', label));

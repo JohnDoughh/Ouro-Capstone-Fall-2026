@@ -1,0 +1,20 @@
+[
+  {
+    "artifact_sha256": "2f93ab0a8d6fa1bf35cd9ea9d89c16e6a7c0c54d7dd634e10af46062bdf7f8f6",
+    "evaluator_alias": "eval-sim-orbit",
+    "verdict": "PASS",
+    "confidence": 0.8,
+    "evidence_codes": ["simulated-test-only"],
+    "evaluated_at": "2026-10-18T00:00:00Z",
+    "contract_version": "1.0.0"
+  },
+  {
+    "artifact_sha256": "ab338d079b110d468f08c8b4adfd6f8885bae3808a9016882e919c93b3ff251b",
+    "evaluator_alias": "eval-sim-orbit",
+    "verdict": "HOLD",
+    "confidence": 0.7,
+    "evidence_codes": ["simulated-test-only"],
+    "evaluated_at": "2026-10-18T00:00:00Z",
+    "contract_version": "1.0.0"
+  }
+]

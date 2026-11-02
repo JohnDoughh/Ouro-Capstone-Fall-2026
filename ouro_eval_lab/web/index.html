@@ -62,7 +62,15 @@
         </form>
       </aside>
     </section>
-    <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p></section>
+    <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p>
+      <button id="load-saved" type="button" aria-expanded="false" aria-controls="saved-panel">Show annotations</button>
+      <p id="saved-error" class="error" role="alert"></p>
+      <div id="saved-panel" class="hidden">
+        <div class="saved-toolbar"><p id="saved-summary" role="status"></p><a id="saved-download" download="saved-annotations.json">Download JSON</a></div>
+        <p class="saved-help">Saved reviews are read-only. Expand record details to verify artifact IDs, hashes, and save times.</p>
+        <div id="saved-records" aria-label="Saved annotations"></div>
+      </div>
+    </section>
   </main>
   <footer>Synthetic demonstration only · No production or customer data · Contract v1.0.0</footer>
   <script src="/app.js"></script>

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
+import weakref
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -82,6 +83,34 @@ class PlayRefused(Exception):
 
 class ManagedConnection(sqlite3.Connection):
     """Finish the transaction and release its file handle on context exit."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._managed_cursors = weakref.WeakSet()
+
+    def cursor(self, *args, **kwargs):
+        cursor = super().cursor(*args, **kwargs)
+        self._managed_cursors.add(cursor)
+        return cursor
+
+    def execute(self, sql, parameters=()):
+        return self.cursor().execute(sql, parameters)
+
+    def executemany(self, sql, parameters):
+        return self.cursor().executemany(sql, parameters)
+
+    def executescript(self, sql_script):
+        return self.cursor().executescript(sql_script)
+
+    def close(self):
+        # sqlite3_close_v2 can defer releasing the file until retained cursors
+        # are finalized. Windows cannot unlink that file in the meantime.
+        try:
+            for cursor in list(self._managed_cursors):
+                cursor.close()
+        finally:
+            self._managed_cursors.clear()
+            super().close()
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:

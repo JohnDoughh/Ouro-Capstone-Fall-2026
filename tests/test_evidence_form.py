@@ -62,7 +62,7 @@ class EvidenceFormTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.form = _EvidenceSection()
-        cls.form.feed(INDEX.read_text())
+        cls.form.feed(INDEX.read_text(encoding="utf-8"))
 
     def test_form_sends_exactly_the_contract_evidence_fields(self):
         self.assertEqual(sorted(self.form.names), sorted(EVIDENCE_FIELDS))
@@ -77,13 +77,13 @@ class EvidenceFormTests(unittest.TestCase):
     def test_family_labels_use_the_ontology_names(self):
         names = {
             int(family_id): name
-            for family_id, name in re.findall(r'- id:\s*(\d+)\s*\n\s*name:\s*"([^"]+)"', ONTOLOGY.read_text())
+            for family_id, name in re.findall(r'- id:\s*(\d+)\s*\n\s*name:\s*"([^"]+)"', ONTOLOGY.read_text(encoding="utf-8"))
         }
         labels = {int(value): label for value, label in self.form.options["defect_family_id"] if value}
         self.assertEqual(labels, {family_id: f"{family_id} · {name}" for family_id, name in names.items()})
 
     def test_evidence_section_starts_hidden_and_reveals_no_answer(self):
-        html = INDEX.read_text()
+        html = INDEX.read_text(encoding="utf-8")
         self.assertRegex(html, r'id="evidence-fields"[^>]*class="[^"]*\bhidden\b')
         text = " ".join(self.form.text).lower()
         # Static copy only: no truth labels, defect keys, or evaluator output.

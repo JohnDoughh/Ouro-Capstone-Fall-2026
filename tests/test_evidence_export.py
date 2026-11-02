@@ -88,7 +88,7 @@ class EvidenceContractTests(unittest.TestCase):
 
     @unittest.skipUnless(ONTOLOGY.exists(), "Team A ontology.yaml is not on this branch yet")
     def test_rubric_families_match_the_team_a_ontology_file(self):
-        text = ONTOLOGY.read_text()
+        text = ONTOLOGY.read_text(encoding="utf-8")
         version = re.search(r'^rubric_version:\s*"([^"]+)"', text, re.MULTILINE).group(1)
         families = {
             int(family_id): flag == "true"
@@ -125,9 +125,11 @@ class EvidenceStorageExportTests(unittest.TestCase):
                     with urllib.request.urlopen(request) as response:
                         return response.status, json.load(response)
 
+                # A malformed rubric version is a 400 rejection, never a server crash.
                 with self.assertRaises(urllib.error.HTTPError) as malformed:
                     submit({**FAMILY_4_HOLD, "rubric_version": []})
                 self.assertEqual(malformed.exception.code, 400)
+                self.assertIn("rubric_version must be a string", json.load(malformed.exception)["error"])
                 status, hold, hold_assignment = submit(FAMILY_4_HOLD)
                 self.assertEqual(status, 201)
                 self.assertEqual(post(hold_assignment, FAMILY_4_HOLD)[1]["replayed"], True)

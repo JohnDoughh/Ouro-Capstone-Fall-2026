@@ -7,6 +7,27 @@ from ouro_eval_lab.store import connect
 
 
 class DatabaseLifetimeTests(unittest.TestCase):
+    def test_retained_cursors_are_finalized_before_connection_close(self):
+        class ObservedCursor(sqlite3.Cursor):
+            finalized = False
+
+            def close(self):
+                self.finalized = True
+                return super().close()
+
+        with tempfile.TemporaryDirectory() as directory:
+            with connect(Path(directory) / "tracked.db") as db:
+                original_cursor = db.cursor
+                db.cursor = lambda: original_cursor(factory=ObservedCursor)
+                script = db.executescript("CREATE TABLE t (value TEXT);")
+                inserted = db.executemany("INSERT INTO t VALUES (?)", [("one",), ("two",)])
+                pending = db.execute("SELECT * FROM t")
+                explicit = original_cursor(factory=ObservedCursor)
+                explicit.execute("SELECT * FROM t")
+                self.assertFalse(any(c.finalized for c in (script, inserted, pending, explicit)))
+            self.assertTrue(all(c.finalized for c in (script, inserted, pending, explicit)))
+            db.close()  # Explicit repeated close remains harmless.
+
     def test_commit_closes_even_when_connection_and_cursor_remain_referenced(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "lab.db"

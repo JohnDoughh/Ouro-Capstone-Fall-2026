@@ -6,12 +6,12 @@ import io
 import json
 from pathlib import Path
 
-from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output
+from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output, HUMAN_VERDICTS
 from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
 
 def load_json(path: Path) -> object:
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def verify_manifest(manifest_path: Path) -> dict:
@@ -65,6 +65,127 @@ def run_benchmark(manifest_path: Path, outputs_path: Path) -> dict:
     })
     return report
 
+
+COMPARE_LIMITATIONS = [
+    "Evaluator outputs are simulated test data, not AVC output.",
+    "Responses are a teammate practice rating, not research data.",
+    "Compares human vs evaluator only; not a measure of evaluator accuracy against ground truth.",
+    "Counts are annotation comparisons, not independent reviewers; repeated ratings remain separate rows.",
+    "An empty or partial response export does not establish complete study coverage.",
+]
+
+
+def _outcome(human: str, evaluator: str) -> str:
+    """
+    Determines the outcome of a comparison between a human verdict and an evaluator verdict.
+    Returns a string representing the type of agreement or disagreement.
+
+    Args:
+        human (str): The human verdict.
+        evaluator (str): The evaluator verdict.
+
+    Returns:
+        str: A string representing the type of agreement or disagreement.
+    """
+    if human == "UNSURE":
+        return "human_unsure"
+    elif evaluator == "UNSURE":
+        # Unreachable today: validate_evaluator_output only allows PASS/HOLD.
+        return "evaluator_unsure"
+    elif human == evaluator:
+        return "agree"
+    elif human == "PASS" and evaluator == "HOLD":
+        return "false_hold"
+    elif human == "HOLD" and evaluator == "PASS":
+        return "false_pass"
+    else:
+        raise ValueError(f"unexpected human/evaluator verdict pair: {human}/{evaluator}")
+
+
+def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: Path) -> dict:
+    """
+    Compares the responses between the evaluator and the human responses to check human vs simulated evaluator agreement.
+    This function will analyze the outputs and provide a summary of the agreement between the two sets of responses.
+    """
+    verified = verify_manifest(manifest_path)
+    manifest = verified["manifest"]
+    by_hash = {row["sha256"]: row for row in manifest["artifacts"]}
+
+    outputs = load_json(outputs_path)
+    if not isinstance(outputs, list):
+        raise ValueError("evaluator outputs must be a list")
+
+    # Checks that the outputs are valid and correspond to the artifacts in the manifest
+    outputs_by_hash = {}
+    seen = set()
+    for output in outputs:
+        validate_evaluator_output(output)
+        digest = output["artifact_sha256"]
+        if digest not in by_hash:
+            raise ValueError(f"output references unknown artifact hash: {digest}")
+        if (digest, output["evaluator_alias"]) in seen:
+            raise ValueError(f"duplicate output for artifact/evaluator: {digest}")
+        seen.add((digest, output["evaluator_alias"]))
+        outputs_by_hash.setdefault(digest, []).append(output)
+
+    # Checks that the responses are valid and correspond to the artifacts in the manifest
+    responses = load_json(responses_path)
+    if not isinstance(responses, dict):
+        raise ValueError("human responses must be a dictionary")
+    if "annotations" not in responses:
+        raise ValueError("human responses must contain an 'annotations' key")
+    if not isinstance(responses["annotations"], list):
+        raise ValueError("human responses 'annotations' must be a list")
+
+    comparison = []
+    for response in responses["annotations"]:
+        if not isinstance(response, dict):
+            raise ValueError("human response must be an object")
+        artifact_sha256 = response.get("artifact_sha256")
+        if not isinstance(artifact_sha256, str):
+            raise ValueError(f"invalid artifact_sha256 in human response: {artifact_sha256}")
+        if artifact_sha256 not in by_hash:
+            raise ValueError(f"response references unknown artifact hash: {artifact_sha256}")
+        if artifact_sha256 not in outputs_by_hash:
+            raise ValueError(f"response references artifact hash not present in outputs: {artifact_sha256}")
+        verdict = response.get("verdict")
+        if not isinstance(verdict, str) or verdict not in HUMAN_VERDICTS:
+            raise ValueError(f"invalid verdict in human response: {verdict}")
+        rater_id = response.get("rater_id")
+        if not isinstance(rater_id, str) or not rater_id:
+            raise ValueError(f"invalid rater_id in human response: {rater_id}")
+
+        # Matching the human response with the corresponding evaluator output
+        evaluator_output = outputs_by_hash[artifact_sha256]
+        for output in evaluator_output:
+            # Implements the comparison logic between the human response and the evaluator output
+            comparison.append({
+                "artifact_sha256": artifact_sha256,
+                "human_verdict": verdict,
+                "evaluator_verdict": output["verdict"],
+                "rater_id": rater_id,
+                "evaluator_alias": output["evaluator_alias"],
+                "outcome": _outcome(verdict, output["verdict"])
+            })
+
+    # Summary of the agreement between human responses and evaluator outputs
+    comparison.sort(key=lambda row: (row["artifact_sha256"], row["rater_id"], row["evaluator_alias"]))
+
+    counts = {name: 0 for name in ("agree", "false_pass", "false_hold", "human_unsure", "evaluator_unsure")}
+    for row in comparison:
+        counts[row["outcome"]] += 1
+
+    return {
+        "benchmark_id": manifest["benchmark_id"],
+        "annotation_contract_version": responses.get("annotation_contract_version"),
+        "synthetic_demo": all(row["synthetic"] for row in manifest["artifacts"]),
+        "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "outputs_sha256": hashlib.sha256(outputs_path.read_bytes()).hexdigest(),
+        "responses_sha256": hashlib.sha256(responses_path.read_bytes()).hexdigest(),
+        "rows": comparison,
+        "counts": counts,
+        "limitations": COMPARE_LIMITATIONS,
+    }
 
 
 def inspect_native_avc(manifest_path: Path, evaluation_path: Path) -> dict:

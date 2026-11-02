@@ -11,7 +11,7 @@ from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
 
 def load_json(path: Path) -> object:
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def verify_manifest(manifest_path: Path) -> dict:
@@ -70,6 +70,8 @@ COMPARE_LIMITATIONS = [
     "Evaluator outputs are simulated test data, not AVC output.",
     "Responses are a teammate practice rating, not research data.",
     "Compares human vs evaluator only; not a measure of evaluator accuracy against ground truth.",
+    "Counts are annotation comparisons, not independent reviewers; repeated ratings remain separate rows.",
+    "An empty or partial response export does not establish complete study coverage.",
 ]
 
 

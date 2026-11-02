@@ -27,4 +27,8 @@ Run by someone who did not build it, from a fresh clone, with no help from the b
 
 Record every step that failed or needed help.
 
+Use a separate report output path: the command refuses paths (including
+symbolic or hard-link aliases) that would overwrite the manifest, evaluator
+outputs, saved responses or media. JSON inputs are UTF-8 on every platform.
+
 Limitations: evaluator outputs are simulated test data, not AVC. The response is a teammate practice rating, not research data. The comparison measures human vs evaluator agreement, not accuracy against ground truth. Do not regenerate or edit the frozen outputs or the saved export. The report contains evaluator verdicts per artifact hash, so keep it away from anyone who has not finished rating.

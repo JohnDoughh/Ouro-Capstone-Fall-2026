@@ -94,6 +94,20 @@ def main(argv: list[str] | None = None) -> int:
         _write(args.out, json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.out}")
     elif args.command == "compare":
+        # Never replace a frozen input or its media through an output alias.
+        protected = [args.manifest, args.outputs, args.responses]
+        manifest = load_json(args.manifest)
+        if isinstance(manifest, dict):
+            protected.extend(
+                args.manifest.parent / row["relative_path"]
+                for row in manifest.get("artifacts", [])
+                if isinstance(row, dict) and isinstance(row.get("relative_path"), str)
+            )
+        for source in protected:
+            if args.out.resolve() == source.resolve() or (
+                args.out.exists() and source.exists() and args.out.samefile(source)
+            ):
+                raise ValueError("comparison output must not overwrite an input or media file")
         report = compare_responses(args.manifest, args.outputs, args.responses)
         # LF bytes on every OS so a rerunner's report hash matches.
         args.out.parent.mkdir(parents=True, exist_ok=True)

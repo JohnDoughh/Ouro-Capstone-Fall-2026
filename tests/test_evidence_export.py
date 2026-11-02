@@ -68,6 +68,10 @@ class EvidenceContractTests(unittest.TestCase):
             ({"rubric_version": None}, "both rubric_version and defect_family_id"),
             ({"defect_family_id": None}, "both rubric_version and defect_family_id"),
             ({"rubric_version": "v9.9"}, "known Team A rubric version"),
+            ({"rubric_version": []}, "rubric_version must be a string"),
+            ({"rubric_version": {}}, "rubric_version must be a string"),
+            ({"rubric_version": 1}, "rubric_version must be a string"),
+            ({"rubric_version": True}, "rubric_version must be a string"),
             ({"defect_family_id": 7}, "defect_family_id must be one of"),
             ({"defect_family_id": "4"}, "defect_family_id must be one of"),
             ({"defect_family_id": True}, "defect_family_id must be one of"),
@@ -121,6 +125,11 @@ class EvidenceStorageExportTests(unittest.TestCase):
                     with urllib.request.urlopen(request) as response:
                         return response.status, json.load(response)
 
+                # A malformed rubric version is a 400 rejection, never a server crash.
+                with self.assertRaises(urllib.error.HTTPError) as malformed:
+                    submit({**FAMILY_4_HOLD, "rubric_version": []})
+                self.assertEqual(malformed.exception.code, 400)
+                self.assertIn("rubric_version must be a string", json.load(malformed.exception)["error"])
                 status, hold, hold_assignment = submit(FAMILY_4_HOLD)
                 self.assertEqual(status, 201)
                 self.assertEqual(post(hold_assignment, FAMILY_4_HOLD)[1]["replayed"], True)

@@ -247,6 +247,8 @@ def _validate_evidence(record: dict[str, Any]) -> None:
         raise ContractError(f"{record['verdict']} annotations cannot include evidence fields: {', '.join(given)}")
     if "rubric_version" not in given or "defect_family_id" not in given:
         raise ContractError("evidence requires both rubric_version and defect_family_id")
+    if not isinstance(record["rubric_version"], str):
+        raise ContractError("rubric_version must be a string naming a known Team A rubric version")
     families = TEAM_A_RUBRIC_FAMILIES.get(record["rubric_version"])
     if families is None:
         raise ContractError("rubric_version is not a known Team A rubric version")

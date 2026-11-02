@@ -1,6 +1,6 @@
 import unittest
 
-from ouro_eval_lab.metrics import brier_score, cohens_kappa, confusion, expected_calibration_error, risk_coverage
+from ouro_eval_lab.metrics import brier_score, bootstrap_kappa_interval, cohens_kappa, confusion, expected_calibration_error, risk_coverage
 
 
 class MetricTests(unittest.TestCase):
@@ -35,6 +35,22 @@ class MetricTests(unittest.TestCase):
 
     def test_kappa(self):
         self.assertEqual(cohens_kappa([("PASS", "PASS"), ("HOLD", "HOLD")]), 1.0)
+
+    def test_kappa_is_unavailable_for_single_category_agreement(self):
+        for label in ("PASS", "HOLD"):
+            for size in (1, 3):
+                with self.subTest(label=label, size=size):
+                    self.assertIsNone(cohens_kappa([(label, label)] * size))
+
+    def test_kappa_handles_empty_and_disagreeing_pairs(self):
+        self.assertIsNone(cohens_kappa([]))
+        self.assertEqual(cohens_kappa([("PASS", "HOLD"), ("HOLD", "PASS")]), -1.0)
+        self.assertEqual(cohens_kappa([("PASS", "PASS"), ("PASS", "HOLD")]), 0.0)
+
+    def test_bootstrap_does_not_turn_undefined_samples_into_perfect_agreement(self):
+        self.assertEqual(bootstrap_kappa_interval([("PASS", "PASS")] * 3, seed=7), [None, None])
+        self.assertEqual(bootstrap_kappa_interval([("HOLD", "HOLD")] * 3, seed=7), [None, None])
+        self.assertEqual(bootstrap_kappa_interval([("PASS", "PASS"), ("HOLD", "HOLD")], seed=7), [1.0, 1.0])
 
 
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
 import hashlib
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
+from ouro_eval_lab.cli import main
 from ouro_eval_lab.contracts import validate_annotation_payload
 from ouro_eval_lab.runner import compare_responses, export_annotations, load_json, verify_manifest
 from ouro_eval_lab.store import connect, ingest, initialize, next_assignment, save_annotation
@@ -40,10 +43,6 @@ def _write_export(directory: str, annotations: list[dict], annotation_contract_v
     return path
 
 
-def _report_bytes(report: dict) -> bytes:
-    return (json.dumps(report, indent=2, sort_keys=True) + "\n").encode()
-
-
 class OrbitComparisonTests(unittest.TestCase):
     def test_response_agreement_human_and_evaluator(self):
         hashes = _hashes()
@@ -66,9 +65,12 @@ class OrbitComparisonTests(unittest.TestCase):
                 _response(hashes["syn-orbit-label-defect"], "PASS"),
             ])
             report = compare_responses(MANIFEST, OUTPUTS, responses)
-        outcomes = {row["artifact_id"]: row["outcome"] for row in report["rows"]}
+        outcomes = {row["artifact_sha256"]: row["outcome"] for row in report["rows"]}
         # The labels compare human and evaluator verdicts, never the manifest's defect truth.
-        self.assertEqual(outcomes, {"syn-orbit-clean": "false_pass", "syn-orbit-label-defect": "false_hold"})
+        self.assertEqual(outcomes, {
+            hashes["syn-orbit-clean"]: "false_pass",
+            hashes["syn-orbit-label-defect"]: "false_hold",
+        })
         self.assertEqual(report["counts"]["false_pass"], 1)
         self.assertEqual(report["counts"]["false_hold"], 1)
 
@@ -113,10 +115,27 @@ class OrbitComparisonTests(unittest.TestCase):
             responses = _write_export(directory, [response], annotation_contract_version="2.2.0")
             report = compare_responses(MANIFEST, OUTPUTS, responses)
         self.assertEqual(report["rows"][0]["outcome"], "agree")
+        self.assertEqual(report["annotation_contract_version"], "2.2.0")
         self.assertEqual(set(report["rows"][0]), {
-            "artifact_id", "artifact_sha256", "rater_id", "human_verdict",
+            "artifact_sha256", "rater_id", "human_verdict",
             "evaluator_verdict", "evaluator_alias", "outcome",
         })
+
+    def test_malformed_responses_are_rejected_with_value_error(self):
+        sha = _hashes()["syn-orbit-clean"]
+        cases = {
+            "missing artifact_sha256": {"rater_id": RATER, "verdict": "PASS"},
+            "missing verdict": {"rater_id": RATER, "artifact_sha256": sha},
+            "missing rater_id": {"artifact_sha256": sha, "verdict": "PASS"},
+            "row is not an object": "not-an-object",
+            "artifact_sha256 is a list": {"rater_id": RATER, "artifact_sha256": [], "verdict": "PASS"},
+            "verdict is a list": {"rater_id": RATER, "artifact_sha256": sha, "verdict": []},
+        }
+        for label, row in cases.items():
+            with self.subTest(label), tempfile.TemporaryDirectory() as directory:
+                responses = _write_export(directory, [row])
+                with self.assertRaises(ValueError):
+                    compare_responses(MANIFEST, OUTPUTS, responses)
 
     def test_saved_export_is_unchanged_by_compare(self):
         payload = {
@@ -151,9 +170,23 @@ class OrbitComparisonTests(unittest.TestCase):
                 _response(hashes["syn-orbit-label-defect"], "HOLD"),
                 _response(hashes["syn-orbit-clean"], "PASS"),
             ])
-            first = compare_responses(MANIFEST, OUTPUTS, responses)
-            second = compare_responses(MANIFEST, OUTPUTS, responses)
-        self.assertEqual(_report_bytes(first), _report_bytes(second))
+            paths = [Path(directory) / name for name in ("first.json", "second.json")]
+            for path in paths:
+                with redirect_stdout(io.StringIO()):
+                    main([
+                        "compare", "--manifest", str(MANIFEST), "--outputs", str(OUTPUTS),
+                        "--responses", str(responses), "--out", str(path),
+                    ])
+            first, second = (path.read_bytes() for path in paths)
+        self.assertEqual(first, second)
+        self.assertNotIn(b"\r\n", first)
+        # Artifact IDs can name the seeded clip, and this report may be linked on cards.
+        self.assertNotIn(b"artifact_id", first)
+        self.assertNotIn(b"syn-orbit", first)
+        report = json.loads(first)
+        self.assertEqual(report["counts"]["agree"], 2)
+        row_hashes = [row["artifact_sha256"] for row in report["rows"]]
+        self.assertEqual(row_hashes, sorted(row_hashes))
 
     def test_frozen_outputs_are_unchanged_after_compare(self):
         hashes = _hashes()

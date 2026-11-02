@@ -19,6 +19,7 @@ This is a working v0.1 scaffold, not a completed research lab and not a source o
 - [Threat model](docs/THREAT_MODEL.md)
 - [Independent rerun procedure](docs/INDEPENDENT_RERUN.md)
 - [Card #465 fictional dropout reproducibility fixture](data/card465_dropout_evidence/README.md)
+- A reproducible fictional dropout agreement report (`make dropout-agreement-report`) that preserves unavailable false-pass/false-hold metrics when no independent reference exists.
 - [Student contribution workflow](CONTRIBUTING.md)
 
 Do not begin real participant annotation until FIU has recorded the applicable human-subjects determination and the gates in `CURRENT_STATUS.md` have been satisfied.

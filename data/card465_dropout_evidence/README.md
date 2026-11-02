@@ -19,9 +19,18 @@ The export's existing `human_annotation` and `human_*` field names are retained 
 
 ```sh
 python3 scripts/build_card465_dropout_evidence.py
+python3 scripts/build_dropout_agreement_report.py
 python3 -m unittest tests.test_card465_dropout_evidence -v
+python3 -m unittest tests.test_dropout_agreement_report -v
 make check
 ```
+
+`build_dropout_agreement_report.py` writes a deterministic summary of
+agreement, disagreement, uncertainty and coverage. False-pass and false-hold
+counts are emitted only when an input is explicitly marked as an independent,
+comparable reference; the committed fictional example therefore marks those
+metrics unavailable instead of treating its demonstration annotation as
+ground truth.
 
 The builder checks media bytes, artifact identity, human-shaped ordinal scales and timestamps, explicit fictional annotation provenance and simulated output provenance. It rejects unmarked/course-observation inputs. Outputs use explicit UTF-8 LF bytes on every OS; Git preserves the committed fixture/export bytes. Repeated runs match the committed JSON files and SHA256SUMS byte for byte.
 

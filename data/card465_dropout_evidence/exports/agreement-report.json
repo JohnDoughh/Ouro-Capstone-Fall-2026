@@ -1,0 +1,31 @@
+{
+  "artifact": {
+    "artifact_id": "syn-tone-b",
+    "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478"
+  },
+  "disclaimer": "Fictional annotation and simulated evaluator demonstration; not a human-subject result or evaluator performance claim.",
+  "inputs": {
+    "annotation_id": "fictional-dropout-review-001",
+    "annotation_provenance": "fictional-test-only",
+    "evaluator_alias": "eval-simulated-dropout-v1",
+    "evaluator_provenance": "simulated-test-only"
+  },
+  "metrics": {
+    "agreement_count": 1,
+    "comparable_coverage": 1.0,
+    "comparable_pair_count": 1,
+    "coverage": 1.0,
+    "disagreement_count": 0,
+    "false_passes_and_holds": {
+      "comparable_reference_count": 0,
+      "false_hold_count": null,
+      "false_pass_count": null,
+      "reason": "no explicitly independent comparable reference judgment",
+      "status": "unavailable"
+    },
+    "pair_count": 1,
+    "uncertain_count": 0
+  },
+  "report_version": "1.0.0",
+  "synthetic_demo": true
+}

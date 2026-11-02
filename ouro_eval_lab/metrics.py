@@ -93,7 +93,9 @@ def cohens_kappa(pairs: list[tuple[str, str]]) -> float | None:
         for label in labels
     )
     if expected == 1:
-        return 1.0
+        # Identical single-category judgments have no chance-corrected
+        # denominator. Raw agreement is perfect, but kappa is undefined.
+        return None
     return (observed - expected) / (1 - expected)
 
 

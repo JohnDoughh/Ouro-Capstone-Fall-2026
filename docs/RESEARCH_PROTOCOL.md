@@ -60,6 +60,13 @@ new media permissions, or authorize revealing private intent/evaluation files.
 
 For evaluator metrics, the positive class is `HOLD`/defect present. `UNSURE` human judgments are preserved but excluded from pairwise kappa unless the pre-registration says otherwise.
 
+Cohen's kappa is unavailable (`null`) when there are no eligible pairs or
+when expected agreement is one (both sides use only the same single category).
+Perfect raw agreement in that case does not establish chance-corrected
+reliability. Bootstrap intervals omit undefined resamples and return
+`[null, null]` when none are defined. They remain exploratory; this convention
+does not establish independent participants or validate a study's sampling.
+
 ## Analysis
 
 - Report per-family and pooled confusion matrices.

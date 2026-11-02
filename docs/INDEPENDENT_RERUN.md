@@ -14,7 +14,7 @@ A person who did not build the analysis performs this procedure.
 
 The builder should not coach the rerunner through undocumented steps. Any missing step is a handoff defect and should be fixed in the repository.
 
-## Orbit comparison (card #532)
+## Orbit comparison human-evaluator (card #532)
 
 Run by someone who did not build it, from a fresh clone, with no help from the builder.
 
@@ -22,8 +22,9 @@ Run by someone who did not build it, from a fresh clone, with no help from the b
 2. `python -m ouro_eval_lab.cli verify --manifest data/public_playable/manifest.json` must report `"verified": 2`.
 3. Download the saved response export linked on card #813. Hash it (`sha256sum` or PowerShell `Get-FileHash`) and confirm it matches the hash recorded on #813.
 4. `python -m ouro_eval_lab.cli compare --manifest data/public_playable/manifest.json --outputs data/public_playable/simulated_evaluator_outputs.json --responses <export.json> --out data/exports/orbit-compare.json`
-5. Print the report SHA-256 with `sha256sum data/exports/orbit-compare.json` or, in PowerShell, `Get-FileHash data\exports\orbit-compare.json` (PowerShell prints it in uppercase).
-6. That hash must equal the report hash recorded on #532. `outputs_sha256` in the report must be `baf609996dc1ee5c88e307b66193994f466cd4f079f98e0673787ca41be94c90`.
-7. Record every step that failed or needed help.
+5. `outputs_sha256` in the report must be `baf609996dc1ee5c88e307b66193994f466cd4f079f98e0673787ca41be94c90`.
+6. Print the report SHA-256 with `sha256sum data/exports/orbit-compare.json` or, in PowerShell, `Get-FileHash data\exports\orbit-compare.json` (PowerShell prints it in uppercase). It must equal the report hash recorded on #532.
+
+Record every step that failed or needed help.
 
 Limitations: evaluator outputs are simulated test data, not AVC. The response is a teammate practice rating, not research data. The comparison measures human vs evaluator agreement, not accuracy against ground truth. Do not regenerate or edit the frozen outputs or the saved export. The report contains evaluator verdicts per artifact hash, so keep it away from anyone who has not finished rating.

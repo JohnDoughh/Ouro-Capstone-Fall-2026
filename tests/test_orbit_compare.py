@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -100,6 +101,33 @@ class OrbitComparisonTests(unittest.TestCase):
             responses = _write_export(directory, [_response("0" * 64, "PASS")])
             with self.assertRaisesRegex(ValueError, "response references unknown artifact hash"):
                 compare_responses(MANIFEST, OUTPUTS, responses)
+
+    def test_output_hash_that_does_not_match_the_media_is_rejected(self):
+        artifact = load_json(MANIFEST)["artifacts"][0]
+        with tempfile.TemporaryDirectory() as directory:
+            media = Path(directory) / "playable"
+            shutil.copytree(PLAYABLE, media)
+            # The frozen output and manifest still name the original hash; only the copied bytes change.
+            clip = media / artifact["relative_path"]
+            blob = bytearray(clip.read_bytes())
+            blob[len(blob) // 2] ^= 0xFF
+            clip.write_bytes(blob)
+            responses = _write_export(directory, [_response(artifact["sha256"], "PASS")])
+            with self.assertRaisesRegex(ValueError, "artifact integrity failure"):
+                compare_responses(media / "manifest.json", OUTPUTS, responses)
+
+    def test_report_binds_its_inputs_and_states_limitations(self):
+        hashes = _hashes()
+        with tempfile.TemporaryDirectory() as directory:
+            responses = _write_export(directory, [_response(hashes["syn-orbit-clean"], "PASS")])
+            responses_sha256 = hashlib.sha256(responses.read_bytes()).hexdigest()
+            report = compare_responses(MANIFEST, OUTPUTS, responses)
+        self.assertEqual(report["manifest_sha256"], hashlib.sha256(MANIFEST.read_bytes()).hexdigest())
+        self.assertEqual(report["responses_sha256"], responses_sha256)
+        self.assertIs(report["synthetic_demo"], True)
+        limitations = " ".join(report["limitations"])
+        for phrase in ("simulated", "not AVC", "practice rating", "not research data"):
+            self.assertIn(phrase, limitations)
 
     def test_export_with_pr28_evidence_fields_still_works(self):
         hashes = _hashes()

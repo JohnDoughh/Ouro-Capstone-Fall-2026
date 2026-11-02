@@ -7,7 +7,7 @@ from pathlib import Path
 from .api import serve
 from .contracts import validate_manifest
 from .fixtures import generate
-from .runner import agreement_report, export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
+from .runner import agreement_report, compare_responses, export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
 from .store import connect, ingest, initialize
 
 
@@ -51,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
     benchmark.add_argument("--manifest", type=Path, required=True)
     benchmark.add_argument("--outputs", type=Path, required=True)
     benchmark.add_argument("--out", type=Path, required=True)
+    compare = sub.add_parser("compare", help="compare saved responses with evaluator outputs by artifact hash")
+    compare.add_argument("--manifest", type=Path, required=True)
+    compare.add_argument("--outputs", type=Path, required=True)
+    compare.add_argument("--responses", type=Path, required=True)
+    compare.add_argument("--out", type=Path, required=True)
     export = sub.add_parser("export")
     export.add_argument("--db", type=Path, required=True)
     export.add_argument("--out", type=Path, required=True)
@@ -87,6 +92,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "benchmark":
         report = run_benchmark(args.manifest, args.outputs)
         _write(args.out, json.dumps(report, indent=2, sort_keys=True) + "\n")
+        print(f"wrote {args.out}")
+    elif args.command == "compare":
+        report = compare_responses(args.manifest, args.outputs, args.responses)
+        # LF bytes on every OS so a rerunner's report hash matches.
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_bytes((json.dumps(report, indent=2, sort_keys=True) + "\n").encode())
         print(f"wrote {args.out}")
     elif args.command == "export":
         initialize(args.db)

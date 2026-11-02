@@ -9,6 +9,7 @@ from pathlib import Path
 from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output, HUMAN_VERDICTS
 from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
 
+
 def load_json(path: Path) -> object:
     return json.loads(path.read_text())
 
@@ -64,17 +65,19 @@ def run_benchmark(manifest_path: Path, outputs_path: Path) -> dict:
     })
     return report
 
+
 COMPARE_LIMITATIONS = [
     "Evaluator outputs are simulated test data, not AVC output.",
     "Responses are a teammate practice rating, not research data.",
     "Compares human vs evaluator only; not a measure of evaluator accuracy against ground truth.",
 ]
 
+
 def _outcome(human: str, evaluator: str) -> str:
     """
     Determines the outcome of a comparison between a human verdict and an evaluator verdict.
     Returns a string representing the type of agreement or disagreement.
-    
+
     Args:
         human (str): The human verdict.
         evaluator (str): The evaluator verdict.
@@ -82,10 +85,10 @@ def _outcome(human: str, evaluator: str) -> str:
     Returns:
         str: A string representing the type of agreement or disagreement.
     """
-      
     if human == "UNSURE":
         return "human_unsure"
     elif evaluator == "UNSURE":
+        # Unreachable today: validate_evaluator_output only allows PASS/HOLD.
         return "evaluator_unsure"
     elif human == evaluator:
         return "agree"
@@ -95,7 +98,6 @@ def _outcome(human: str, evaluator: str) -> str:
         return "false_pass"
     else:
         raise ValueError(f"unexpected human/evaluator verdict pair: {human}/{evaluator}")
-
 
 
 def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: Path) -> dict:
@@ -135,15 +137,19 @@ def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: P
 
     comparison = []
     for response in responses["annotations"]:
-        artifact_sha256 = response["artifact_sha256"]
+        if not isinstance(response, dict):
+            raise ValueError("human response must be an object")
+        artifact_sha256 = response.get("artifact_sha256")
+        if not isinstance(artifact_sha256, str):
+            raise ValueError(f"invalid artifact_sha256 in human response: {artifact_sha256}")
         if artifact_sha256 not in by_hash:
             raise ValueError(f"response references unknown artifact hash: {artifact_sha256}")
         if artifact_sha256 not in outputs_by_hash:
             raise ValueError(f"response references artifact hash not present in outputs: {artifact_sha256}")
-        verdict = response["verdict"]
-        if verdict not in HUMAN_VERDICTS:
+        verdict = response.get("verdict")
+        if not isinstance(verdict, str) or verdict not in HUMAN_VERDICTS:
             raise ValueError(f"invalid verdict in human response: {verdict}")
-        rater_id = response["rater_id"]
+        rater_id = response.get("rater_id")
         if not isinstance(rater_id, str) or not rater_id:
             raise ValueError(f"invalid rater_id in human response: {rater_id}")
 
@@ -155,14 +161,13 @@ def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: P
                 "artifact_sha256": artifact_sha256,
                 "human_verdict": verdict,
                 "evaluator_verdict": output["verdict"],
-                "artifact_id": by_hash[artifact_sha256]["artifact_id"],
                 "rater_id": rater_id,
                 "evaluator_alias": output["evaluator_alias"],
                 "outcome": _outcome(verdict, output["verdict"])
             })
 
     # Summary of the agreement between human responses and evaluator outputs
-    comparison.sort(key=lambda row: (row["artifact_id"], row["rater_id"], row["evaluator_alias"]))
+    comparison.sort(key=lambda row: (row["artifact_sha256"], row["rater_id"], row["evaluator_alias"]))
 
     counts = {name: 0 for name in ("agree", "false_pass", "false_hold", "human_unsure", "evaluator_unsure")}
     for row in comparison:
@@ -170,6 +175,7 @@ def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: P
 
     return {
         "benchmark_id": manifest["benchmark_id"],
+        "annotation_contract_version": responses.get("annotation_contract_version"),
         "synthetic_demo": all(row["synthetic"] for row in manifest["artifacts"]),
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         "outputs_sha256": hashlib.sha256(outputs_path.read_bytes()).hexdigest(),
@@ -177,7 +183,7 @@ def compare_responses(manifest_path: Path, outputs_path: Path, responses_path: P
         "rows": comparison,
         "counts": counts,
         "limitations": COMPARE_LIMITATIONS,
-        }
+    }
 
 
 def inspect_native_avc(manifest_path: Path, evaluation_path: Path) -> dict:
@@ -274,4 +280,3 @@ def agreement_report(db, seed: int = 20260825) -> dict:
         "cohens_kappa_95ci": bootstrap_kappa_interval(pairs, seed),
         "note": "Uses the first two pseudonymous raters per artifact; extend to Krippendorff alpha for 3+ raters.",
     }
-    

@@ -2,6 +2,7 @@ const state = {rater: null, assignment: null, loadEpoch: 0, pendingSave: null, s
 const $ = id => document.getElementById(id);
 const REQUEST_DEADLINE_MS = 12000;
 const PENDING_SAVE_KEY = 'ouro-eval-lab-pending-save-v1';
+const EVIDENCE_VALUES = ['defect_family_id', 'region', 'reference_id', 'evidence_description'];
 
 function validRaterId(value) {
   const characters = [...value];
@@ -80,9 +81,24 @@ function clearAssignment() {
 }
 
 function setJudgmentEditable(editable) {
-  for (const control of $('annotation-form').querySelectorAll('input, textarea')) {
+  for (const control of $('annotation-form').querySelectorAll('input, textarea, select')) {
     control.disabled = !editable;
   }
+}
+
+function showEvidence(verdict) {
+  // PASS and UNSURE never collect evidence; the inputs stay hidden and unsent.
+  $('evidence-fields').classList[verdict === 'HOLD' ? 'remove' : 'add']('hidden');
+}
+
+function evidenceBody(form) {
+  const evidence = {};
+  for (const field of EVIDENCE_VALUES) {
+    const value = String(form.get(field) ?? '').trim();
+    if (value) evidence[field] = field === 'defect_family_id' ? Number(value) : value;
+  }
+  if (Object.keys(evidence).length) evidence.rubric_version = String(form.get('rubric_version') ?? '');
+  return evidence;
 }
 
 $('signin-form').addEventListener('submit', async event => {
@@ -121,6 +137,10 @@ $('signin-form').addEventListener('submit', async event => {
 $('retry-load').addEventListener('click', loadNext);
 $('retry-save').addEventListener('click', sendPendingSave);
 
+$('annotation-form').addEventListener('change', event => {
+  if (event.target?.name === 'verdict') showEvidence(event.target.value);
+});
+
 $('annotation-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (!state.assignment || state.pendingSave) return;
@@ -135,6 +155,7 @@ $('annotation-form').addEventListener('submit', async event => {
     url: `/api/annotations/${state.assignment.assignment_id}?rater=${encodeURIComponent(state.rater)}`,
     body: JSON.stringify({
       verdict: form.get('verdict'),
+      ...(form.get('verdict') === 'HOLD' ? evidenceBody(form) : {}),
       confidence: Number(form.get('confidence')),
       severity: Number(form.get('severity')),
       defect_timestamps: String(form.get('defect_timestamps') || '').trim(),
@@ -202,6 +223,7 @@ async function sendPendingSave() {
     discardRecoveryRecord();
     state.pendingSave = null;
     pending.form.reset();
+    showEvidence(null);
     await loadNext();
   } catch (error) {
     if (state.pendingSave !== pending) return;
@@ -366,6 +388,13 @@ function renderSavedAnnotations(records) {
       ['Confidence', `${record.confidence} / 5 (scale ${record.confidence_scale})`],
       ['Defect timestamp', record.defect_timestamps || 'None recorded'],
       ['Reason codes', record.reason_codes.length ? record.reason_codes.join(', ') : 'None selected'],
+      ...(record.defect_family_id == null ? [] : [
+        ['Defect family', `${record.defect_family_id} (rubric ${record.rubric_version})`],
+        ['Region', record.region || 'None recorded'],
+        ['Reference SHA-256', record.reference_id || 'None recorded'],
+        ['Evidence', record.evidence_description || 'None recorded'],
+      ]),
+
     ]) {
       const field = document.createElement('div');
       field.append(savedText('dt', label));

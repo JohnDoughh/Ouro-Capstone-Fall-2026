@@ -10,3 +10,8 @@
 .confidence-options small{font-size:.58rem}
 .scale-options input:checked+span{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint);color:var(--mint)}
 .scale-options input:focus-visible+span{outline:2px solid var(--mint);outline-offset:2px}
+
+.evidence-fields{padding-top:14px;border-top:1px solid var(--line)}
+.evidence-fields label{display:block;margin:10px 0}
+.evidence-fields select,.evidence-fields input{display:block;width:100%;margin-top:6px;background:#08120f;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px;font:inherit}
+.hint{color:var(--muted);font-size:.9rem}

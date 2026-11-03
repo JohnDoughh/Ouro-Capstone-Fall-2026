@@ -37,7 +37,7 @@ class StoreTests(unittest.TestCase):
                 ).fetchone()
                 self.assertEqual(tuple(saved), (4.0, "1-5", 1, "00:04-00:05; 00:08"))
                 exported = json.loads(export_annotations(db))
-                self.assertEqual(exported["annotation_contract_version"], "2.1.0")
+                self.assertEqual(exported["annotation_contract_version"], "2.2.0")
                 self.assertEqual(exported["annotations"][0]["confidence"], 4.0)
                 self.assertEqual(exported["annotations"][0]["severity"], 1)
                 self.assertEqual(exported["annotations"][0]["defect_timestamps"], "00:04-00:05; 00:08")
@@ -65,7 +65,7 @@ class StoreTests(unittest.TestCase):
             export_path = Path(directory) / "annotations.json"
             self.assertEqual(cli_main(["export", "--db", str(db_path), "--out", str(export_path)]), 0)
             exported = json.loads(export_path.read_text())
-            self.assertEqual(exported["annotation_contract_version"], "2.1.0")
+            self.assertEqual(exported["annotation_contract_version"], "2.2.0")
             self.assertEqual(exported["annotations"][0]["confidence"], 0.75)
             self.assertEqual(exported["annotations"][0]["confidence_scale"], "legacy-0-1")
             self.assertIsNone(exported["annotations"][0]["severity"])

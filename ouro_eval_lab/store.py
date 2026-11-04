@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
+import weakref
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .contracts import INTENT_RESPONSE_CONTRACT_VERSION
+from .contracts import EVIDENCE_FIELDS, INTENT_RESPONSE_CONTRACT_VERSION
 
 
 SCHEMA = """
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS annotations (
   annotation_id TEXT PRIMARY KEY, assignment_id TEXT UNIQUE NOT NULL, rater_id TEXT NOT NULL,
   artifact_sha256 TEXT NOT NULL, verdict TEXT NOT NULL, confidence REAL NOT NULL,
     confidence_scale TEXT NOT NULL DEFAULT '1-5', severity INTEGER, defect_timestamps TEXT,
-    reason_codes TEXT NOT NULL, note TEXT NOT NULL, started_at TEXT NOT NULL,
+    rubric_version TEXT, defect_family_id INTEGER, region TEXT, reference_id TEXT,
+    evidence_description TEXT, reason_codes TEXT NOT NULL, note TEXT NOT NULL, started_at TEXT NOT NULL,
   completed_at TEXT NOT NULL, FOREIGN KEY(assignment_id) REFERENCES assignments(assignment_id)
 );
 CREATE TABLE IF NOT EXISTS adjudications (
@@ -120,6 +122,48 @@ BEGIN SELECT RAISE(ABORT, 'intent freezes are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS intent_freezes_no_delete BEFORE DELETE ON intent_freezes
 BEGIN SELECT RAISE(ABORT, 'intent freezes are append-only'); END;
 """
+EVIDENCE_COLUMNS = (
+    ("rubric_version", "TEXT"), ("defect_family_id", "INTEGER"), ("region", "TEXT"),
+    ("reference_id", "TEXT"), ("evidence_description", "TEXT"),
+)
+
+
+class ManagedConnection(sqlite3.Connection):
+    """Finish the transaction and release its file handle on context exit."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._managed_cursors = weakref.WeakSet()
+
+    def cursor(self, *args, **kwargs):
+        cursor = super().cursor(*args, **kwargs)
+        self._managed_cursors.add(cursor)
+        return cursor
+
+    def execute(self, sql, parameters=()):
+        return self.cursor().execute(sql, parameters)
+
+    def executemany(self, sql, parameters):
+        return self.cursor().executemany(sql, parameters)
+
+    def executescript(self, sql_script):
+        return self.cursor().executescript(sql_script)
+
+    def close(self):
+        # sqlite3_close_v2 can defer releasing the file until retained cursors
+        # are finalized. Windows cannot unlink that file in the meantime.
+        try:
+            for cursor in list(self._managed_cursors):
+                cursor.close()
+        finally:
+            self._managed_cursors.clear()
+            super().close()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
 
 STUDIES = ("annotation", "intent")
 
@@ -133,9 +177,10 @@ class PlayRefused(Exception):
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
+    """Use as a context manager, or explicitly close when managing it manually."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
+    connection = sqlite3.connect(path, factory=ManagedConnection)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
@@ -153,6 +198,10 @@ def initialize(path: Path | str) -> None:
             db.execute("ALTER TABLE annotations ADD COLUMN severity INTEGER")
         if "defect_timestamps" not in columns:
             db.execute("ALTER TABLE annotations ADD COLUMN defect_timestamps TEXT")
+        # Evidence columns have no default: rows saved before contract 2.2.0 keep NULL (unknown).
+        for column, kind in EVIDENCE_COLUMNS:
+            if column not in columns:
+                db.execute(f"ALTER TABLE annotations ADD COLUMN {column} {kind}")
 
 
 def ingest(path: Path | str, manifest: dict, fixture_root: Path) -> int:
@@ -232,12 +281,15 @@ def save_annotation(db: sqlite3.Connection, assignment_id: str, rater_id: str, p
     db.execute(
         """INSERT INTO annotations
            (annotation_id, assignment_id, rater_id, artifact_sha256, verdict, confidence,
-            confidence_scale, severity, defect_timestamps, reason_codes, note, started_at, completed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            confidence_scale, severity, defect_timestamps, rubric_version, defect_family_id,
+            region, reference_id, evidence_description, reason_codes, note, started_at, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             annotation_id, assignment_id, rater_id, assignment["artifact_sha256"], payload["verdict"],
             payload["confidence"], "1-5", payload["severity"],
             payload.get("defect_timestamps", "").strip(),
+            # Evidence is stored exactly as submitted; an omitted field stays NULL.
+            *(payload.get(field) for field in EVIDENCE_FIELDS),
             json.dumps(payload["reason_codes"]), payload.get("note", ""),
             assignment["started_at"], completed_at,
         ),

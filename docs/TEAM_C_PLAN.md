@@ -10,7 +10,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 | Branch | State |
 |---|---|
 | `team-c/sprint1-walking-skeleton` | Pushed. Sprint 1 docs. No PR (team approved). |
-| `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). Awaiting re-review. |
+| `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). 2026-11-04: `main` had moved ~40 commits and conflicted in 11 files; merged `main` in and resolved (`70df507`). Awaiting re-review. |
 | `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal command, codebook draft and this tracker; Sprint 2 fixes merged in; coder sheets and code import added in Sprint 4 (2026-11-04). No PR yet (open one after PR #23 merges, or when Sprint 3 is complete). |
 
 **PR #23 review (2026-10-19), all addressed**
@@ -44,7 +44,7 @@ Still to do: link the cards to PR #23 and this branch on the portal (team task).
 
 **Known issues**
 
-- 8 existing tests fail on Windows only (`WinError 32`): `with connect()` commits but never closes, so connections wait for the garbage collector. Needs a separate shared-infrastructure PR. Linux CI is unaffected; Team C tests work around it.
+- ~~8 existing tests fail on Windows only (`WinError 32`).~~ Fixed upstream by PR #32 (connections close on every platform); gone since `main` was merged in on 2026-11-04.
 - PR #23's hosted CI cannot run: the owner approved it, but an owner-account billing lock stops GitHub Actions. The owner ran the checks locally (Python 3.13).
 - `make` and `gh` on this machine: no `make`, so run the `make check` steps one by one. `gh` is at `C:\Program Files\GitHub CLI\gh.exe` (not on PATH until a restart).
 
@@ -165,8 +165,8 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 ## Verification (per PR and at the end)
 
-- [~] `make check` *(run step by step on Windows; passes apart from the 8 known Windows-only errors)*
-- [x] `node --test tests/web_lab_state.test.cjs` *(45 pass)*
+- [x] `make check` *(run step by step on Windows; all 155 Python tests pass after the 2026-11-04 merge of `main`)*
+- [x] `node --test tests/web_lab_state.test.cjs` *(52 pass after merging `main`)*
 - [~] Manual end-to-end check:
   - [x] serve in intent mode on a separate database; answer all 4 clips; replay and timeout retry
   - [x] `export-intent` and record the hash

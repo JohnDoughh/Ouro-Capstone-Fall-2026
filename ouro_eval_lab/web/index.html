@@ -50,6 +50,22 @@
             <label><input type="radio" name="severity" value="3" aria-label="Severity 3, severe" required><span><b>3</b><small>Severe</small></span></label>
           </div></fieldset>
           <label>Defect timestamp(s)<input id="defect-timestamps" name="defect_timestamps" maxlength="240" placeholder="00:04–00:05; 00:08"></label>
+          <fieldset id="evidence-fields" class="evidence-fields hidden"><legend>Defect evidence</legend>
+            <p class="hint">Describe what you saw. Families 3 and 4 also need the SHA-256 of the approved reference you compared against.</p>
+            <label>Rubric version<select name="rubric_version"><option value="v0.1" selected>v0.1</option></select></label>
+            <label>Defect family<select name="defect_family_id">
+              <option value="" selected>Choose a family</option>
+              <option value="1">1 · Presenter Identity Continuity</option>
+              <option value="2">2 · Face, Hand, Body, and Object Integrity</option>
+              <option value="3">3 · Product and Packaging Accuracy</option>
+              <option value="4">4 · Visible Text and Claim Accuracy</option>
+              <option value="5">5 · Scene-to-Scene Visual Continuity</option>
+              <option value="6">6 · Composition, Occlusion, and Rendering Defects</option>
+            </select></label>
+            <label>Region in the frame<input name="region" maxlength="240" placeholder="Where in the frame you saw it"></label>
+            <label>Reference SHA-256<input name="reference_id" maxlength="64" spellcheck="false" autocomplete="off" placeholder="64 hex characters"></label>
+            <label>Evidence description<textarea name="evidence_description" maxlength="500" rows="3"></textarea></label>
+          </fieldset>
           <fieldset><legend>Reason codes</legend><div class="checks">
             <label><input type="checkbox" name="reason" value="visual_integrity">Visual integrity</label>
             <label><input type="checkbox" name="reason" value="audio_integrity">Audio integrity</label>
@@ -147,7 +163,15 @@
       </aside>
     </section>
     <section id="closed" class="card narrow hidden"><p class="kicker">Collection closed</p><h2>This study is no longer collecting responses.</h2><p id="closed-unsaved" class="hidden">Your last answer was not saved because responses had already been frozen for analysis.</p><p>Answers you submitted before the freeze are preserved. You can close this tab.</p></section>
-    <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p></section>
+    <section id="done" class="card narrow hidden"><p class="kicker">Complete</p><h2>Your assignment queue is finished.</h2><p>Your raw judgments have been preserved. Aggregate results remain hidden during collection.</p>
+      <button id="load-saved" type="button" aria-expanded="false" aria-controls="saved-panel">Show annotations</button>
+      <p id="saved-error" class="error" role="alert"></p>
+      <div id="saved-panel" class="hidden">
+        <div class="saved-toolbar"><p id="saved-summary" role="status"></p><a id="saved-download" download="saved-annotations.json">Download JSON</a></div>
+        <p class="saved-help">Saved reviews are read-only. Expand record details to verify artifact IDs, hashes, and save times.</p>
+        <div id="saved-records" aria-label="Saved annotations"></div>
+      </div>
+    </section>
   </main>
   <footer>Synthetic demonstration only · No production or customer data · Contract v1.0.0</footer>
   <script src="/app.js"></script>

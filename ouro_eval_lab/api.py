@@ -4,15 +4,17 @@ import json
 import hashlib
 import mimetypes
 import sqlite3
+from contextlib import closing
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .contracts import (
-    INTENT_MAX_PLAY_COUNT, ContractError, normalize_intent_response,
+    EVIDENCE_FIELDS, INTENT_MAX_PLAY_COUNT, ContractError, normalize_intent_response,
     validate_annotation_payload, validate_intent_response_payload, validate_pseudonymous_id,
 )
+from .runner import EXPORT_FIELDS
 from .store import (
     CollectionFrozen, PlayRefused, connect, intent_collection_frozen, intent_plays_used,
     next_assignment, progress, record_intent_play, save_annotation, save_intent_response, saved_intent_receipt,
@@ -30,7 +32,8 @@ def _saved_annotation_receipt(db: sqlite3.Connection, assignment_id: str, rater:
     saved = db.execute(
         """SELECT annotation_id, completed_at, verdict, confidence,
                   confidence_scale, severity, defect_timestamps,
-                  reason_codes, note FROM annotations
+                  rubric_version, defect_family_id, region, reference_id,
+                  evidence_description, reason_codes, note FROM annotations
            WHERE assignment_id=? AND rater_id=?""",
         (assignment_id, rater),
     ).fetchone()
@@ -49,6 +52,7 @@ def _same_saved_annotation(row: sqlite3.Row, payload: dict) -> bool:
         and (row["defect_timestamps"] or "") == payload.get("defect_timestamps", "").strip()
         and json.loads(row["reason_codes"]) == payload["reason_codes"]
         and row["note"] == payload.get("note", "")
+        and all(row[field] == payload.get(field) for field in EVIDENCE_FIELDS)
     )
 
 
@@ -110,6 +114,30 @@ class LabHandler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/api/health":
                 return self._json(200, {"status": "ok", "synthetic_demo": True, "study": self.study})
+            # Saved PASS/HOLD review belongs to the annotation study only.
+            if parsed.path == "/api/saved-annotations" and self.study == "annotation":
+                rater = self._rater(query)
+                with closing(sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+                    db.row_factory = sqlite3.Row
+                    db.execute("BEGIN")
+                    counts = db.execute(
+                        "SELECT COUNT(*) total, SUM(completed_at IS NULL) pending FROM assignments WHERE rater_id=?",
+                        (rater,),
+                    ).fetchone()
+                    if not counts["total"] or counts["pending"]:
+                        return self._json(403, {"error": "Finish your assignment queue before viewing saved annotations"})
+                    fields = ", ".join("n." + field for field in EXPORT_FIELDS)
+                    rows = [dict(row) for row in db.execute(
+                        "SELECT " + fields + ", x.artifact_id, a.sequence FROM annotations n "
+                        "JOIN assignments a ON a.assignment_id=n.assignment_id "
+                        "AND a.rater_id=n.rater_id AND a.artifact_sha256=n.artifact_sha256 "
+                        "JOIN artifacts x ON x.sha256=n.artifact_sha256 "
+                        "WHERE n.rater_id=? ORDER BY a.sequence", (rater,),
+                    )]
+                for row in rows:
+                    row["reason_codes"] = json.loads(row["reason_codes"])
+                    row["review_label"] = f"Item {row.pop('sequence') + 1:03d}"
+                return self._json(200, {"schema_version": "saved-review-v1", "annotations": rows})
             if parsed.path == "/api/next":
                 rater = self._rater(query)
                 repeats = self.study != "intent"

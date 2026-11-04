@@ -37,7 +37,7 @@ Still to do: link the cards to PR #23 and this branch on the portal (team task).
 **Next steps, in order**
 
 1. ~~Build coder sheets and code import.~~ Done in Sprint 4, 2026-11-04 (`ouro_eval_lab/coding.py`, `tests/test_intent_coding.py`).
-2. Propose the adjudication record shape to the Team A and B delegates, then build it.
+2. *(Proposal written 2026-11-04: `docs/ADJUDICATION_PROPOSAL.md`; send it to the delegates.)* Propose the adjudication record shape to the Team A and B delegates, then build it.
 3. Team: calibrate the codebook on the practice anchors; freeze it with the pre-registration.
 4. Team: send the sponsor questions (vocabulary mapping, custodian; record format and `offer`/`required_beats` are now answered by the PR #23 review); name the open roles.
 
@@ -123,7 +123,7 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 - [x] `reveal` CLI: refuses unless an `export-intent` freeze exists, runs the reveal checks, validates, loads records with `record_sha256` *(tables `intent_reveals`, which plays the role of `reveal_log`, and `intent_records`; both append-only; repeat reveal is a no-op; different records refused)*
 - [x] `intent-coding-sheet --coder <id>`: randomized (response × component × record field) items; excludes the coder's own viewer responses; hides other coders' codes and viewer IDs *(done in Sprint 4. CSV; excludes every clip the coder was assigned as a viewer; also hides viewer certainty, response and artifact IDs; seed 20261014 recorded in append-only `intent_coding_sheets`; one sheet per coder)*
 - [x] `intent-import-codes`: validate and append to `intent_codings`; never update; reject duplicates *(done in Sprint 4. All-or-nothing per file; blank rows skipped so coders can import in parts; identical re-import is a no-op; a changed code is refused; enforces the `not_applicable` and note rules; each code bound to `response_sha256`, `record_sha256`, `artifact_sha256` and the codebook version)*
-- [ ] `intent_adjudications` table + `adjudicate-intent` CLI *(coordinate the shape with Team A and B delegates first)*
+- [~] `intent_adjudications` table + `adjudicate-intent` CLI *(coordinate the shape with Team A and B delegates first; proposal in `docs/ADJUDICATION_PROPOSAL.md`, not yet agreed)*
 - [ ] Coder web UI *(stretch)*
 
 ## Sprint 4: Metrics, agreement, calibration and abstention

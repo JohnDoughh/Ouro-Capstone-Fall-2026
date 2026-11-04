@@ -18,6 +18,7 @@ const INTENT_LABELS = {
 
 // Mirrors the server: a rater ID must never be a phone number.
 const PHONE_LIKE = /(?<!\d)\d{3}[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/;
+const EVIDENCE_VALUES = ['defect_family_id', 'region', 'reference_id', 'evidence_description'];
 
 function validRaterId(value) {
   const characters = [...value];
@@ -107,14 +108,14 @@ function clearAssignment() {
 
 function setJudgmentEditable(editable) {
   const form = $('annotation-form');
-  for (const control of form.querySelectorAll('input, textarea')) {
+  for (const control of form.querySelectorAll('input, textarea, select')) {
     control.disabled = true;
   }
   if (!editable) return;
   // Only the active study's controls are enabled, so hidden required inputs
   // can never block a submission or travel with it.
   const active = `[data-study="${state.study}"]`;
-  for (const control of form.querySelectorAll(`${active} input, ${active} textarea`)) {
+  for (const control of form.querySelectorAll(`${active} input, ${active} textarea, ${active} select`)) {
     control.disabled = false;
   }
 }
@@ -127,12 +128,16 @@ function showStudy(study) {
   $('decision-kicker').textContent = intent ? 'Your independent recall' : 'Your independent judgment';
   $('decision-title').textContent = intent ? 'What was this ad trying to tell you?' : 'Should this artifact proceed?';
   $('submit').textContent = intent ? 'Submit answers' : 'Submit judgment';
+  // Saved PASS/HOLD review exists only in the annotation study.
+  $('load-saved').classList[intent ? 'add' : 'remove']('hidden');
 }
 
 function annotationBody(form) {
   const reason_codes = [...document.querySelectorAll('input[name=reason]:checked')].map(input => input.value);
   return {
     verdict: form.get('verdict'),
+    // Evidence travels only with HOLD (annotation contract 2.2.0).
+    ...(form.get('verdict') === 'HOLD' ? evidenceBody(form) : {}),
     confidence: Number(form.get('confidence')),
     severity: Number(form.get('severity')),
     defect_timestamps: String(form.get('defect_timestamps') || '').trim(),
@@ -263,6 +268,21 @@ async function playClip() {
   updatePlayControls();
 }
 
+function showEvidence(verdict) {
+  // PASS and UNSURE never collect evidence; the inputs stay hidden and unsent.
+  $('evidence-fields').classList[verdict === 'HOLD' ? 'remove' : 'add']('hidden');
+}
+
+function evidenceBody(form) {
+  const evidence = {};
+  for (const field of EVIDENCE_VALUES) {
+    const value = String(form.get(field) ?? '').trim();
+    if (value) evidence[field] = field === 'defect_family_id' ? Number(value) : value;
+  }
+  if (Object.keys(evidence).length) evidence.rubric_version = String(form.get('rubric_version') ?? '');
+  return evidence;
+}
+
 $('signin-form').addEventListener('submit', async event => {
   event.preventDefault();
   const rater = $('rater').value.trim();
@@ -302,6 +322,10 @@ $('signin-form').addEventListener('submit', async event => {
 $('retry-load').addEventListener('click', loadNext);
 $('retry-save').addEventListener('click', sendPendingSave);
 $('play-clip').addEventListener('click', playClip);
+
+$('annotation-form').addEventListener('change', event => {
+  if (event.target?.name === 'verdict') showEvidence(event.target.value);
+});
 
 $('annotation-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -394,6 +418,7 @@ async function sendPendingSave() {
     discardRecoveryRecord();
     state.pendingSave = null;
     pending.form.reset();
+    showEvidence(null);
     await loadNext();
   } catch (error) {
     if (state.pendingSave !== pending) return;
@@ -538,3 +563,103 @@ async function renderMedia(item, playsUsed = 0) {
     pre.textContent = content;
   }
 }
+
+// Completed records are hidden until requested and fetched fresh each time.
+let savedVisible = false;
+function savedText(tag, text, className = '') {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  node.className = className;
+  return node;
+}
+
+function renderSavedAnnotations(records) {
+  const container = $('saved-records');
+  container.replaceChildren();
+  for (const record of records) {
+    const card = document.createElement('article');
+    card.className = 'saved-card';
+    const heading = document.createElement('div');
+    heading.className = 'saved-heading';
+    heading.append(savedText('h3', record.review_label));
+    heading.append(savedText('span', record.verdict, `verdict-badge verdict-${record.verdict.toLowerCase()}`));
+    card.append(heading);
+    const fields = document.createElement('dl');
+    fields.className = 'saved-fields';
+    for (const [label, value] of [
+      ['Severity', `${record.severity} / 3`],
+      ['Confidence', `${record.confidence} / 5 (scale ${record.confidence_scale})`],
+      ['Defect timestamp', record.defect_timestamps || 'None recorded'],
+      ['Reason codes', record.reason_codes.length ? record.reason_codes.join(', ') : 'None selected'],
+      ...(record.defect_family_id == null ? [] : [
+        ['Defect family', `${record.defect_family_id} (rubric ${record.rubric_version})`],
+        ['Region', record.region || 'None recorded'],
+        ['Reference SHA-256', record.reference_id || 'None recorded'],
+        ['Evidence', record.evidence_description || 'None recorded'],
+      ]),
+
+    ]) {
+      const field = document.createElement('div');
+      field.append(savedText('dt', label));
+      field.append(savedText('dd', value));
+      fields.append(field);
+    }
+    card.append(fields);
+    card.append(savedText('h4', 'Evidence note'));
+    card.append(savedText('p', record.note || 'No note provided', 'saved-note'));
+    const details = document.createElement('details');
+    details.append(savedText('summary', 'Record details'));
+    const metadata = document.createElement('dl');
+    metadata.className = 'saved-metadata';
+    for (const [label, value] of [
+      ['Artifact ID', record.artifact_id], ['SHA-256', record.artifact_sha256],
+      ['Annotation ID', record.annotation_id], ['Started at', record.started_at],
+      ['Saved at', record.completed_at],
+    ]) {
+      metadata.append(savedText('dt', label));
+      metadata.append(savedText('dd', value));
+    }
+    details.append(metadata);
+    card.append(details);
+    container.append(card);
+  }
+}
+
+$('load-saved').addEventListener('click', async () => {
+  const button = $('load-saved');
+  $('saved-error').textContent = '';
+  $('saved-records').replaceChildren();
+  $('saved-panel').classList.add('hidden');
+  $('saved-download').removeAttribute('href');
+  button.setAttribute('aria-expanded', 'false');
+  if (savedVisible) {
+    savedVisible = false;
+    button.textContent = 'Show annotations';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Loading annotations…';
+  try {
+    const body = await withDeadline(async signal => {
+      const response = await fetch(`/api/saved-annotations?rater=${encodeURIComponent(state.rater)}`, {
+        signal, cache: 'no-store',
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to load saved annotations');
+      return body;
+    }, 'Timed out loading saved annotations');
+    renderSavedAnnotations(body.annotations);
+    $('saved-summary').textContent = `${body.annotations.length} saved annotations`;
+    $('saved-download').href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(body, null, 2));
+    $('saved-panel').classList.remove('hidden');
+    savedVisible = true;
+    button.textContent = 'Hide annotations';
+    button.setAttribute('aria-expanded', 'true');
+  } catch (error) {
+    $('saved-records').replaceChildren();
+    button.textContent = 'Show annotations';
+    $('saved-error').textContent = error.message || 'Unable to load saved annotations';
+  } finally {
+    button.disabled = false;
+  }
+});

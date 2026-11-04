@@ -25,7 +25,7 @@ function harness(replies, mediaModes = [], storage = {entries: new Map()}) {
         replaceChildren() { this.children = []; },
         append(child) { this.children.push(child); },
         reset() { this.resetCount = (this.resetCount || 0) + 1; },
-        setAttribute() {},
+        setAttribute() {}, removeAttribute() {},
       });
     }
     return elements.get(id);
@@ -53,7 +53,8 @@ function harness(replies, mediaModes = [], storage = {entries: new Map()}) {
       createElement: tag => {
         const listeners = new Map();
         const node = {
-          tag, setAttribute() {}, removeAttribute() {}, load() {},
+          tag, children: [], append(child) { this.children.push(child); },
+          setAttribute() {}, removeAttribute() {}, load() {},
           play() { node.played = (node.played || 0) + 1; return Promise.resolve(); },
           addEventListener(name, callback) {
             if (!listeners.has(name)) listeners.set(name, new Set());
@@ -922,4 +923,124 @@ test('a play refused by a frozen collection closes without playing', async () =>
   await lab.element('play-clip').listeners.click();
   assert.equal(video.played, undefined);
   assertClosed(lab, {unsaved: false});
+});
+
+test('saved cards are opt-in, hide without fetching, and clear on fetch failure', async () => {
+  const saved = {schema_version: 'saved-review-v1', annotations: [{
+    review_label: 'Item 001', note: '<script>literal evidence</script>', verdict: 'HOLD',
+    reason_codes: ['audio_integrity'], severity: 3, confidence: 5, confidence_scale: '1-5',
+    defect_timestamps: '00:04-00:05', artifact_id: 'syn-tone-b', artifact_sha256: 'a'.repeat(64),
+    annotation_id: 'saved-1', started_at: 'start', completed_at: 'end',
+  }]};
+  const lab = harness([
+    {ok: true, body: {assignment: null, progress: {total: 3, completed: 3}}},
+    {ok: true, body: saved},
+    {ok: false, body: {error: 'Access denied'}},
+  ]);
+  await lab.signIn();
+  assert.equal(lab.requests.length, 1);
+  assert.equal(lab.element('saved-records').children.length, 0);
+  await lab.element('load-saved').listeners.click();
+  const card = lab.element('saved-records').children[0];
+  assert.equal(card.tag, 'article');
+  assert.equal(card.children[3].textContent, '<script>literal evidence</script>');
+  assert.equal(lab.element('load-saved').textContent, 'Hide annotations');
+  const download = JSON.parse(decodeURIComponent(lab.element('saved-download').href.split(',').slice(1).join(',')));
+  assert.deepEqual(download, saved);
+  assert.equal(lab.requests[1].url, '/api/saved-annotations?rater=rater-a');
+  await lab.element('load-saved').listeners.click();
+  assert.equal(lab.requests.length, 2);
+  assert.equal(lab.element('saved-records').children.length, 0);
+  assert.equal(lab.element('saved-panel').classList.contains('hidden'), true);
+  await lab.element('load-saved').listeners.click();
+  assert.equal(lab.element('saved-records').children.length, 0);
+  assert.equal(lab.element('saved-error').textContent, 'Access denied');
+  assert.equal(lab.element('load-saved').disabled, false);
+});
+
+const REFERENCE = 'a'.repeat(64);
+const pickVerdict = (lab, value) => {
+  lab.element('annotation-form').fields.verdict = value;
+  lab.element('annotation-form').listeners.change({target: {name: 'verdict', value}});
+};
+const fillEvidence = lab => Object.assign(lab.element('annotation-form').fields, {
+  rubric_version: 'v0.1', defect_family_id: '4', region: ' orange badge, lower right ',
+  reference_id: REFERENCE, evidence_description: 'Badge reads COLD 12 H, not COLD 24 H.',
+});
+const postedBody = lab => JSON.parse(lab.requests.find(request => request.method === 'POST').body);
+
+test('evidence inputs appear only for HOLD and hide again after a save', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(item('b'), 1)]);
+  await lab.signIn();
+  const evidence = lab.element('evidence-fields');
+  evidence.classList.add('hidden');
+  pickVerdict(lab, 'HOLD');
+  assert.equal(evidence.classList.contains('hidden'), false);
+  for (const verdict of ['PASS', 'UNSURE']) {
+    pickVerdict(lab, verdict);
+    assert.equal(evidence.classList.contains('hidden'), true, verdict);
+  }
+  pickVerdict(lab, 'HOLD');
+  await lab.submit();
+  assert.equal(evidence.classList.contains('hidden'), true);
+});
+
+test('HOLD sends evidence under the exact contract 2.2.0 field names', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  fillEvidence(lab);
+  await lab.submit();
+  const body = postedBody(lab);
+  assert.deepEqual(Object.keys(body).sort(), [
+    'confidence', 'defect_family_id', 'defect_timestamps', 'evidence_description', 'note',
+    'reason_codes', 'reference_id', 'region', 'rubric_version', 'severity', 'verdict',
+  ]);
+  assert.equal(body.rubric_version, 'v0.1');
+  assert.equal(body.defect_family_id, 4);
+  assert.equal(body.region, 'orange badge, lower right');
+  assert.equal(body.reference_id, REFERENCE);
+  assert.equal(body.evidence_description, 'Badge reads COLD 12 H, not COLD 24 H.');
+});
+
+test('HOLD without evidence sends no rubric version on its own', async () => {
+  const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  Object.assign(lab.element('annotation-form').fields, {rubric_version: 'v0.1', defect_family_id: ''});
+  await lab.submit();
+  const body = postedBody(lab);
+  for (const field of ['rubric_version', 'defect_family_id', 'region', 'reference_id', 'evidence_description']) {
+    assert.equal(field in body, false, field);
+  }
+});
+
+for (const verdict of ['PASS', 'UNSURE']) {
+  test(`${verdict} submits evidence empty even if HOLD inputs were filled first`, async () => {
+    const lab = harness([next(item('a')), {ok: true, body: {annotation_id: 'saved'}}, next(null, 1)]);
+    await lab.signIn();
+    pickVerdict(lab, 'HOLD');
+    fillEvidence(lab);
+    pickVerdict(lab, verdict);
+    await lab.submit();
+    const body = postedBody(lab);
+    assert.equal(body.verdict, verdict);
+    for (const field of ['rubric_version', 'defect_family_id', 'region', 'reference_id', 'evidence_description']) {
+      assert.equal(field in body, false, field);
+    }
+  });
+}
+
+test('a rejected evidence value shows the server error and keeps the form editable', async () => {
+  const message = 'defect family 4 requires reference_id as 64 lowercase hex characters';
+  const lab = harness([next(item('a')), {ok: false, status: 400, body: {error: message}}]);
+  await lab.signIn();
+  pickVerdict(lab, 'HOLD');
+  fillEvidence(lab);
+  lab.element('annotation-form').fields.reference_id = 'not-a-hash';
+  await lab.submit();
+  assert.equal(lab.element('error').textContent, message);
+  assert.equal(lab.element('submit').disabled, false);
+  assert.equal(lab.assignment().assignment_id, 'a');
+  assert.ok(lab.element('annotation-form').controls.every(control => !control.disabled));
 });

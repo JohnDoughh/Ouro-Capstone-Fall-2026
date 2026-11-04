@@ -62,6 +62,43 @@ CREATE TABLE IF NOT EXISTS intent_records (
   FOREIGN KEY(reveal_id) REFERENCES intent_reveals(reveal_id),
   FOREIGN KEY(artifact_sha256) REFERENCES artifacts(sha256)
 );
+CREATE TABLE IF NOT EXISTS intent_coding_sheets (
+  sheet_id TEXT PRIMARY KEY, coder_id TEXT UNIQUE NOT NULL, reveal_id TEXT NOT NULL,
+  seed INTEGER NOT NULL, item_count INTEGER NOT NULL, sheet_sha256 TEXT NOT NULL,
+  codebook_version TEXT NOT NULL, coding_contract_version TEXT NOT NULL, created_at TEXT NOT NULL,
+  FOREIGN KEY(reveal_id) REFERENCES intent_reveals(reveal_id)
+);
+CREATE TABLE IF NOT EXISTS intent_code_imports (
+  import_id TEXT PRIMARY KEY, sheet_id TEXT NOT NULL, coder_id TEXT NOT NULL,
+  import_sha256 TEXT NOT NULL, coded_count INTEGER NOT NULL, unchanged_count INTEGER NOT NULL,
+  imported_at TEXT NOT NULL,
+  FOREIGN KEY(sheet_id) REFERENCES intent_coding_sheets(sheet_id)
+);
+CREATE TABLE IF NOT EXISTS intent_codings (
+  coding_id TEXT PRIMARY KEY, item_id TEXT UNIQUE NOT NULL, import_id TEXT NOT NULL,
+  sheet_id TEXT NOT NULL, coder_id TEXT NOT NULL, response_id TEXT NOT NULL,
+  response_sha256 TEXT NOT NULL, record_sha256 TEXT NOT NULL, artifact_sha256 TEXT NOT NULL,
+  component TEXT NOT NULL, delivery TEXT NOT NULL, code TEXT NOT NULL,
+  confidence INTEGER NOT NULL, note TEXT NOT NULL, codebook_version TEXT NOT NULL,
+  coding_contract_version TEXT NOT NULL, coded_at TEXT NOT NULL,
+  UNIQUE(coder_id, response_id, component),
+  FOREIGN KEY(import_id) REFERENCES intent_code_imports(import_id),
+  FOREIGN KEY(sheet_id) REFERENCES intent_coding_sheets(sheet_id),
+  FOREIGN KEY(response_id) REFERENCES intent_responses(response_id),
+  FOREIGN KEY(record_sha256) REFERENCES intent_records(record_sha256)
+);
+CREATE TRIGGER IF NOT EXISTS intent_coding_sheets_no_update BEFORE UPDATE ON intent_coding_sheets
+BEGIN SELECT RAISE(ABORT, 'intent coding sheets are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_coding_sheets_no_delete BEFORE DELETE ON intent_coding_sheets
+BEGIN SELECT RAISE(ABORT, 'intent coding sheets are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_code_imports_no_update BEFORE UPDATE ON intent_code_imports
+BEGIN SELECT RAISE(ABORT, 'intent code imports are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_code_imports_no_delete BEFORE DELETE ON intent_code_imports
+BEGIN SELECT RAISE(ABORT, 'intent code imports are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_codings_no_update BEFORE UPDATE ON intent_codings
+BEGIN SELECT RAISE(ABORT, 'intent codes are append-only; disagreement goes to adjudication'); END;
+CREATE TRIGGER IF NOT EXISTS intent_codings_no_delete BEFORE DELETE ON intent_codings
+BEGIN SELECT RAISE(ABORT, 'intent codes are append-only; disagreement goes to adjudication'); END;
 CREATE TRIGGER IF NOT EXISTS intent_reveals_no_update BEFORE UPDATE ON intent_reveals
 BEGIN SELECT RAISE(ABORT, 'intent reveals are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS intent_reveals_no_delete BEFORE DELETE ON intent_reveals

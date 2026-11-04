@@ -231,6 +231,56 @@ SHA-256, artifact SHA-256, the exact committed record text, and the intent
 contract version). Both tables are append-only by trigger. Revealing the same
 records again changes nothing; revealing different records is refused.
 
+### Stage 2 coding (intent coding contract `1.0.0`)
+
+`intent-coding-sheet --db <db> --coder <id> --out <csv> [--seed 20261014]`
+writes one coder's sheet; it is refused before a reveal. The sheet has one row
+per (frozen response, component) with exactly these columns: `item`,
+`item_id`, `component`, `delivery`, `intended_text`, `viewer_recall`,
+`viewer_could_not_tell`, and the blank `code`, `confidence`, `note` columns
+the coder fills in.
+
+- Blinding: no viewer ID, viewer certainty, response ID, artifact ID, clip
+  name, artifact SHA-256, evaluator output or other coder's code appears on a
+  sheet. A coder gets no items for any clip they were assigned as a viewer.
+- Order: items are shuffled with `Random("<seed>:<coder>")`. `item_id` is the
+  first 24 hex characters of SHA-256 over the reveal ID, coder, response ID and
+  component, so IDs differ per coder and the sheet can be rebuilt.
+- Each coder gets one sheet, recorded in append-only `intent_coding_sheets`
+  (reveal ID, seed, item count, sheet SHA-256, codebook version, coding
+  contract version). Asking again with the same seed rebuilds identical bytes
+  and records nothing new; a different seed is refused.
+- `intended_text` and `viewer_recall` cells that begin with `=`, `+`, `-`, `@`,
+  tab or carriage return get a leading `'` so spreadsheet apps do not run them.
+  These columns are display only and are never read back.
+
+`intent-import-codes --db <db> --coder <id> --codes <csv>` validates a filled
+sheet (UTF-8, with or without a byte-order mark; only `item_id`, `code`,
+`confidence` and `note` are read). Any error rejects the whole file.
+
+- `code` is one of `recovered`, `partially_recovered`, `not_recovered`,
+  `contradicted`, `not_applicable`. A component whose delivery is
+  `not_intended` must be `not_applicable`, and `not_applicable` is allowed
+  only there.
+- `confidence` is 1, 2 or 3. `note` is at most 300 characters with no contact
+  details, and is required for `partially_recovered`, `contradicted` and
+  confidence 1.
+- Rows with no code, confidence and note are uncoded and skipped, so a coder
+  can import in parts. An `item_id` not on that coder's sheet, or listed twice,
+  is refused. Re-importing an identical code is a no-op; a different code for an
+  item already coded is refused. Errors name lines and rules, never text.
+
+Each accepted file appends one `intent_code_imports` row (file SHA-256, counts)
+and one `intent_codings` row per code. A code stores the coder ID, response ID,
+`response_sha256`, `record_sha256`, `artifact_sha256`, component, delivery,
+code, confidence, note, codebook version, coding contract version and time.
+`response_sha256` is SHA-256 over the stored response's columns
+(`response_id`, `assignment_id`, `rater_id`, `artifact_sha256`,
+`response_contract_version`, `components`, `other_beats`, `play_count`,
+`play_limit`, `started_at`, `completed_at`) as compact JSON with sorted keys,
+so it can be recomputed from the database. All three tables are append-only by
+trigger; `(coder_id, response_id, component)` is unique.
+
 ## Adjudication
 
 Adjudication is stored as a separate append-only decision linked to annotations. It must never modify or delete a rater's original response.

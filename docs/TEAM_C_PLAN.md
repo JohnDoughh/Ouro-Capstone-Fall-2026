@@ -1,6 +1,6 @@
 # Team C implementation plan: status tracker
 
-Team C: Intent Fidelity and Human Perception. Last updated **2026-10-19**.
+Team C: Intent Fidelity and Human Perception. Last updated **2026-11-04**.
 
 Legend: `[x]` done · `[~]` partly done or waiting on someone · `[ ]` not started.
 Notes in *italics* say where the work lives or where it differs from the plan.
@@ -11,7 +11,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 |---|---|
 | `team-c/sprint1-walking-skeleton` | Pushed. Sprint 1 docs. No PR (team approved). |
 | `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). Awaiting re-review. |
-| `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal command, codebook draft and this tracker; Sprint 2 fixes merged in. No PR yet (open one after PR #23 merges, or when Sprint 3 is complete). |
+| `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal command, codebook draft and this tracker; Sprint 2 fixes merged in; coder sheets and code import added in Sprint 4 (2026-11-04). No PR yet (open one after PR #23 merges, or when Sprint 3 is complete). |
 
 **PR #23 review (2026-10-19), all addressed**
 
@@ -21,9 +21,22 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 
 Still to do from the review: link this work to the relevant portal cards (team task). Value types of `delivery_codes`, `frozen_at`, `schema`, `record_type` and `note` were inferred from key names; ask the owner/custodian to run `scripts/verify_intent_reveal.py` on the sealed records (errors name keys, never values) to confirm before reveal.
 
+**Portal cards (checked 2026-11-04 against `docs/Cards.png`)**
+
+| Card | State | Where |
+|---|---|---|
+| Create scoring rules for the seven intent fields (Accepted) | `[~]` draft done | `docs/INTENT_CODEBOOK.md` v0.1; needs calibration and freeze |
+| #586 Collect a viewer's response without showing the intended answers | `[x]` | C-2, PR #23 |
+| #587 Save the original viewer response and record its hash | `[x]` | append-only `intent_responses`; freeze SHA-256 of the export; per-response `response_sha256` bound into every code (computed from the stored row, not a stored column) |
+| #588 Have a different person grade what the viewer understood | `[~]` | coder sheets + import done (a coder never codes a clip they viewed); adjudication still to do |
+| #589 Check that the video, response, and evaluator IDs match | `[~]` | clip, response and record are bound by SHA-256 in each code; the evaluator part waits on an intent evaluator-output contract (none exists) |
+| #590 Create a repeatable comparison scoreboard and label simulated results | `[ ]` | Sprint 4 `intent-report` (`synthetic_demo` label) and Sprint 5 `make intent-pilot` |
+
+Still to do: link the cards to PR #23 and this branch on the portal (team task).
+
 **Next steps, in order**
 
-1. Build coder sheets (`intent-coding-sheet`) and code import (`intent-import-codes`).
+1. ~~Build coder sheets and code import.~~ Done in Sprint 4, 2026-11-04 (`ouro_eval_lab/coding.py`, `tests/test_intent_coding.py`).
 2. Propose the adjudication record shape to the Team A and B delegates, then build it.
 3. Team: calibrate the codebook on the practice anchors; freeze it with the pre-registration.
 4. Team: send the sponsor questions (vocabulary mapping, custodian; record format and `offer`/`required_beats` are now answered by the PR #23 review); name the open roles.
@@ -50,7 +63,7 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 - [x] Leave the shared PASS/HOLD annotation contract (2.1.0) unchanged. Intent capture is a new, separately versioned contract.
 - [x] Reuse existing machinery: assignments, assignment-scoped media and the byte-range server, idempotent receipts (factored into one shared helper), SHA-256 verification, export allow-list pattern, reveal check. *Wilson CI and bootstrap reuse is for Sprint 4.*
-- [x] Viewers never see the intent record, manifest, README or other viewers' responses. *Coders-never-viewers is enforced in Sprint 3 coder sheets (not built yet).*
+- [x] Viewers never see the intent record, manifest, README or other viewers' responses. *Coders-never-viewers is enforced by `intent-coding-sheet`.*
 
 ---
 
@@ -108,8 +121,8 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 - [~] `docs/INTENT_CODEBOOK.md` *(draft v0.1: scale, decision rules, delivery-code rules including `not_intended` → `not_applicable`, component guidance, invented practice anchors not from the study set, calibration procedure. Needs team calibration and freezing.)*
 - [x] `reveal` CLI: refuses unless an `export-intent` freeze exists, runs the reveal checks, validates, loads records with `record_sha256` *(tables `intent_reveals`, which plays the role of `reveal_log`, and `intent_records`; both append-only; repeat reveal is a no-op; different records refused)*
-- [ ] `intent-coding-sheet --coder <id>`: randomized (response × component × record field) items; excludes the coder's own viewer responses; hides other coders' codes and viewer IDs
-- [ ] `intent-import-codes`: validate and append to `intent_codings`; never update; reject duplicates
+- [x] `intent-coding-sheet --coder <id>`: randomized (response × component × record field) items; excludes the coder's own viewer responses; hides other coders' codes and viewer IDs *(done in Sprint 4. CSV; excludes every clip the coder was assigned as a viewer; also hides viewer certainty, response and artifact IDs; seed 20261014 recorded in append-only `intent_coding_sheets`; one sheet per coder)*
+- [x] `intent-import-codes`: validate and append to `intent_codings`; never update; reject duplicates *(done in Sprint 4. All-or-nothing per file; blank rows skipped so coders can import in parts; identical re-import is a no-op; a changed code is refused; enforces the `not_applicable` and note rules; each code bound to `response_sha256`, `record_sha256`, `artifact_sha256` and the codebook version)*
 - [ ] `intent_adjudications` table + `adjudicate-intent` CLI *(coordinate the shape with Team A and B delegates first)*
 - [ ] Coder web UI *(stretch)*
 
@@ -155,7 +168,7 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
   - [x] serve in intent mode on a separate database; answer all 4 clips; replay and timeout retry
   - [x] `export-intent` and record the hash
   - [x] reveal fails before the freeze and with tampered records *(with stand-in records; real records still sealed)*
-  - [ ] coding sheets and import for two coders
+  - [~] coding sheets and import for two coders *(automated tests cover two coders; a manual run on the dry-run database is still to do)*
   - [ ] `intent-report`, byte-identical on rerun
   - [x] no artifact ID, SHA or intent text reaches the viewer API
 - [~] Each PR: feature branch, Team C checkbox, docs and contracts together *(done for PR #23; shared-contract PRs need all three delegates)*

@@ -48,6 +48,14 @@ INTENT_NOTE_MAX = 500
 INTENT_RECALL_MAX = 300
 INTENT_OTHER_BEATS_MAX = 500
 INTENT_MAX_PLAY_COUNT = 20
+# Stage 2 coding (docs/INTENT_CODEBOOK.md). Bump the codebook version when the
+# codebook is frozen or amended; every sheet and code records the one in force.
+INTENT_CODING_CONTRACT_VERSION = "1.0.0"
+INTENT_CODEBOOK_VERSION = "0.1-draft"
+INTENT_RECOVERY_CODES = {
+    "recovered", "partially_recovered", "not_recovered", "contradicted", "not_applicable",
+}
+INTENT_CODE_NOTE_MAX = 300
 _ARTIFACT_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,80}")
 _SALT_RE = re.compile(r"[A-Za-z0-9+/=_-]{1,128}")
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
@@ -263,6 +271,16 @@ def looks_like_phone_number(text: str) -> bool:
     return bool(_PHONE_RE.search(text))
 
 
+def validate_pseudonymous_id(value: Any, label: str = "rater") -> str:
+    """Return a stripped pseudonymous ID (viewer or coder) or raise ValueError."""
+    value = value.strip() if isinstance(value, str) else ""
+    if not value or len(value) > 80 or not all(ch.isalnum() or ch in "-_" for ch in value):
+        raise ValueError(f"{label} must be a pseudonymous ID using letters, numbers, - or _")
+    if looks_like_phone_number(value):
+        raise ValueError(f"{label} must be a pseudonymous ID, not a phone number")
+    return value
+
+
 def _contains_contact_info(text: str) -> bool:
     return bool(_EMAIL_RE.search(text) or looks_like_phone_number(text))
 
@@ -339,6 +357,32 @@ def intent_coding_units(record: dict[str, Any]) -> dict[str, dict[str, str]]:
         field: {"text": record["intended"][field], "delivery": record["delivery"][field]}
         for field in INTENT_FIELDS
     }
+
+
+def validate_intent_code(code: Any, confidence: Any, note: Any, delivery: str) -> dict[str, Any]:
+    """Validate one coder's code for one item (coding contract 1.0.0).
+
+    Returns the stored form. Errors never echo the note or any viewer text.
+    """
+    code = code.strip() if isinstance(code, str) else code
+    if code not in INTENT_RECOVERY_CODES:
+        raise ContractError(f"code must be one of: {', '.join(sorted(INTENT_RECOVERY_CODES))}")
+    if isinstance(confidence, str) and confidence.strip() in {"1", "2", "3"}:
+        confidence = int(confidence.strip())
+    if type(confidence) is not int or not 1 <= confidence <= 3:
+        raise ContractError("confidence must be 1, 2 or 3")
+    note = note.strip() if isinstance(note, str) else note
+    if not isinstance(note, str) or len(note) > INTENT_CODE_NOTE_MAX:
+        raise ContractError(f"note must be at most {INTENT_CODE_NOTE_MAX} characters")
+    if _contains_contact_info(note):
+        raise ContractError("note must not contain contact details")
+    if delivery == "not_intended" and code != "not_applicable":
+        raise ContractError("a not_intended component must be coded not_applicable")
+    if code == "not_applicable" and delivery != "not_intended":
+        raise ContractError("not_applicable is only for components whose delivery is not_intended")
+    if not note and (code in {"partially_recovered", "contradicted"} or confidence == 1):
+        raise ContractError("a note is required for partially_recovered, contradicted or confidence 1")
+    return {"code": code, "confidence": confidence, "note": note}
 
 
 def validate_intent_response_payload(record: dict[str, Any], play_limit: int | None = None) -> None:

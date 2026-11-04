@@ -26,6 +26,12 @@ are not in the study set, so the examples cannot hint at the answers for
   ambiguous between two readings, use the less generous one and say why in the
   note.
 
+- You receive a CSV sheet from `intent-coding-sheet`. Fill in only the
+  `code`, `confidence` and `note` columns; leave a row blank if you have not
+  coded it yet. Import with `intent-import-codes`. A code cannot be changed
+  once imported, so check before you import. The import enforces the
+  `not_applicable` rule and the note rule below.
+
 ## 2. Recovery scale
 
 | Code | Use when |

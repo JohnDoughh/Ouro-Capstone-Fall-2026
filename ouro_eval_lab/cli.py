@@ -12,6 +12,7 @@ from .runner import (
     agreement_report, export_annotations, export_intent_responses, inspect_native_avc,
     load_json, run_benchmark, verify_manifest,
 )
+from .coding import DEFAULT_SHEET_SEED, CodingRefused, import_codes, issue_sheet
 from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
 from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
 
@@ -73,6 +74,19 @@ def main(argv: list[str] | None = None) -> int:
     export_intent.add_argument("--db", type=Path, required=True)
     export_intent.add_argument("--out", type=Path, required=True)
     export_intent.add_argument("--format", choices=["json", "csv"], default="json")
+    sheet_cmd = sub.add_parser(
+        "intent-coding-sheet", help="write one coder's blinded Stage 2 coding sheet (CSV); after reveal",
+    )
+    sheet_cmd.add_argument("--db", type=Path, required=True)
+    sheet_cmd.add_argument("--coder", required=True, help="pseudonymous coder ID")
+    sheet_cmd.add_argument("--out", type=Path, required=True)
+    sheet_cmd.add_argument("--seed", type=int, default=DEFAULT_SHEET_SEED, help="item-order seed (recorded)")
+    import_cmd = sub.add_parser(
+        "intent-import-codes", help="validate a filled coding sheet and append its codes",
+    )
+    import_cmd.add_argument("--db", type=Path, required=True)
+    import_cmd.add_argument("--coder", required=True, help="pseudonymous coder ID the sheet was issued to")
+    import_cmd.add_argument("--codes", type=Path, required=True, help="the filled coding sheet CSV")
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
@@ -147,6 +161,30 @@ def main(argv: list[str] | None = None) -> int:
             print(f"already revealed: the same {result['record_count']} intent records; nothing changed")
         else:
             print(f"revealed {result['record_count']} intent records after freeze {result['freeze_sha256']}")
+    elif args.command in {"intent-coding-sheet", "intent-import-codes"}:
+        if not args.db.is_file():
+            parser.error(f"{args.command} requires an existing local lab database")
+        initialize(args.db)
+        try:
+            with connect(args.db) as db:
+                db.execute("BEGIN IMMEDIATE")
+                if args.command == "intent-coding-sheet":
+                    result = issue_sheet(db, args.coder, args.seed)
+                else:
+                    result = import_codes(db, args.coder, args.codes.read_bytes())
+        except (CodingRefused, ValueError) as exc:
+            parser.error(str(exc))
+        if args.command == "intent-coding-sheet":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_bytes(result["body"])
+            state = "rebuilt the recorded" if result["reissued"] else "issued a"
+            print(f"{state} sheet of {result['item_count']} items to {args.out}")
+            print(f"sha256 {result['sheet_sha256']}  seed {args.seed}")
+            print("the sheet holds revealed intent text: give it only to this coder")
+        else:
+            print(f"imported {result['coded']} codes ({result['unchanged']} already stored, "
+                  f"{result['uncoded']} left blank)")
+            print(f"sha256 {result['import_sha256']}")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")

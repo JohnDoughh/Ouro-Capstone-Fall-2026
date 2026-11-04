@@ -105,12 +105,15 @@ Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
   the browser shows a final “collection closed” state after the freeze;
 - `reveal`, which refuses until a freeze exists and loads verified records
   into append-only tables bound to that freeze (Sprint 3);
+- blinded coder sheets (`intent-coding-sheet`) and append-only code import
+  (`intent-import-codes`); each code is bound to the SHA-256 of the exact
+  response, revealed record and clip (Sprint 4);
 - a draft coding codebook, `docs/INTENT_CODEBOOK.md` (not yet calibrated or
   frozen).
 
 Still missing:
 
-- coder sheets, code import and adjudication records (Sprint 3);
+- adjudication records (Sprint 3; shape to agree with Teams A and B);
 - thesis, hook, proof, offer, CTA, and critical-beat survival metrics, and
   coder agreement (Sprint 4);
 - separation between observable recovery and perceived persuasion in reporting.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 from .api import serve
@@ -13,6 +14,10 @@ from .runner import (
     load_json, run_benchmark, verify_manifest,
 )
 from .coding import DEFAULT_SHEET_SEED, CodingRefused, import_codes, issue_sheet
+from .intent_metrics import (
+    DEFAULT_SAMPLES as INTENT_SAMPLES, DEFAULT_SEED as INTENT_SEED, build_intent_report,
+    render_intent_report,
+)
 from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
 from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
 
@@ -34,6 +39,18 @@ def bootstrap_demo(root: Path, db_path: Path, seed: int) -> tuple[Path, Path, in
     initialize(db_path)
     count = ingest(db_path, verified["manifest"], manifest_path.parent)
     return manifest_path, outputs_path, count
+
+
+def _code_commit() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10,
+            cwd=Path(__file__).resolve().parents[1],
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unrecorded"
+    commit = result.stdout.strip()
+    return commit if result.returncode == 0 and len(commit) == 40 else "unrecorded"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -87,6 +104,16 @@ def main(argv: list[str] | None = None) -> int:
     import_cmd.add_argument("--db", type=Path, required=True)
     import_cmd.add_argument("--coder", required=True, help="pseudonymous coder ID the sheet was issued to")
     import_cmd.add_argument("--codes", type=Path, required=True, help="the filled coding sheet CSV")
+    intent_report = sub.add_parser(
+        "intent-report", help="write the deterministic intent metrics report (JSON) from coded responses",
+    )
+    intent_report.add_argument("--db", type=Path, required=True)
+    intent_report.add_argument("--out", type=Path, required=True)
+    intent_report.add_argument("--seed", type=int, default=INTENT_SEED, help="bootstrap seed (pre-registered)")
+    intent_report.add_argument("--samples", type=int, default=INTENT_SAMPLES, help="bootstrap resamples")
+    intent_report.add_argument(
+        "--code-commit", default=None, help="commit to record; defaults to git HEAD when available",
+    )
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
@@ -185,6 +212,24 @@ def main(argv: list[str] | None = None) -> int:
             print(f"imported {result['coded']} codes ({result['unchanged']} already stored, "
                   f"{result['uncoded']} left blank)")
             print(f"sha256 {result['import_sha256']}")
+    elif args.command == "intent-report":
+        if not args.db.is_file():
+            parser.error("intent-report requires an existing local lab database")
+        if args.samples < 1:
+            parser.error("--samples must be at least 1")
+        initialize(args.db)
+        try:
+            with connect(args.db) as db:
+                report = build_intent_report(
+                    db, args.seed, args.samples, args.code_commit or _code_commit(),
+                )
+        except ValueError as exc:
+            parser.error(str(exc))
+        body = render_intent_report(report)
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_bytes(body)
+        print(f"wrote {args.out} (synthetic demo; not a research finding)")
+        print(f"sha256 {hashlib.sha256(body).hexdigest()}")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")

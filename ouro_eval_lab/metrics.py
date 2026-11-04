@@ -113,6 +113,87 @@ def bootstrap_kappa_interval(pairs: list[tuple[str, str]], seed: int, samples: i
     return [values[int(0.025 * (len(values) - 1))], values[int(0.975 * (len(values) - 1))]]
 
 
+def krippendorff_alpha(
+    units: Iterable[Iterable[object]], order: list[object] | None = None,
+) -> float | None:
+    """Krippendorff's alpha for any number of raters, with missing values.
+
+    ``units`` holds one list of rater values per unit; ``None`` means missing.
+    Units with fewer than two values are not pairable and are ignored. With
+    ``order`` (lowest to highest) the ordinal metric is used, otherwise the
+    nominal one; values not in ``order`` are dropped. Returns None when alpha
+    is undefined (no pairable values, or only one value ever used). Shared by
+    all teams: annotation verdicts, intent recovery codes, anything nominal.
+    """
+    rank = {value: index for index, value in enumerate(order)} if order is not None else None
+    coincidence: dict[tuple[object, object], float] = defaultdict(float)
+    for unit in units:
+        values = [v for v in unit if v is not None and (rank is None or v in rank)]
+        m = len(values)
+        if m < 2:
+            continue
+        for i, a in enumerate(values):
+            for j, b in enumerate(values):
+                if i != j:
+                    coincidence[(a, b)] += 1 / (m - 1)
+    totals: dict[object, float] = defaultdict(float)
+    for (a, _), weight in coincidence.items():
+        totals[a] += weight
+    n = sum(totals.values())
+    if n <= 1 or len(totals) < 2:
+        return None
+    if rank is None:
+        def delta(a: object, b: object) -> float:
+            return 0.0 if a == b else 1.0
+    else:
+        ordered = sorted(totals, key=rank.__getitem__)
+
+        def delta(a: object, b: object) -> float:
+            low, high = sorted((rank[a], rank[b]))
+            between = sum(totals[v] for v in ordered if low <= rank[v] <= high)
+            return (between - (totals[a] + totals[b]) / 2) ** 2
+    observed = sum(weight * delta(a, b) for (a, b), weight in coincidence.items())
+    expected = sum(totals[a] * totals[b] * delta(a, b) for a in totals for b in totals)
+    if expected == 0:
+        return None
+    return 1 - (n - 1) * observed / expected
+
+
+def bootstrap_alpha_interval(
+    clusters: list[list[list[object]]], seed: int, samples: int = 2000,
+    order: list[object] | None = None, strata: list[object] | None = None,
+) -> list[float | None]:
+    """95% percentile bootstrap interval for Krippendorff's alpha.
+
+    Each cluster is a list of units resampled together (for example all the
+    components of one response). With ``strata`` (one key per cluster),
+    clusters are resampled within their stratum (for example within clip).
+    """
+    if len(clusters) < 2:
+        return [None, None]
+    keys = strata if strata is not None else [None] * len(clusters)
+    groups: dict[object, list[int]] = defaultdict(list)
+    for index, key in enumerate(keys):
+        groups[key].append(index)
+    ordered_groups = [groups[key] for key in sorted(groups, key=repr)]
+    rng = random.Random(seed)
+    values = []
+    for _ in range(samples):
+        units = [
+            unit
+            for members in ordered_groups
+            for _ in members
+            for unit in clusters[members[rng.randrange(len(members))]]
+        ]
+        value = krippendorff_alpha(units, order)
+        if value is not None:
+            values.append(value)
+    if not values:
+        return [None, None]
+    values.sort()
+    return [values[int(0.025 * (len(values) - 1))], values[int(0.975 * (len(values) - 1))]]
+
+
 def evaluator_report(rows: list[dict], seed: int) -> dict:
     by_family: dict[str, list[dict]] = defaultdict(list)
     for row in rows:

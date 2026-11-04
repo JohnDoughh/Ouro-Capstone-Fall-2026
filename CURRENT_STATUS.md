@@ -109,13 +109,21 @@ Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
   (`intent-import-codes`); each code is bound to the SHA-256 of the exact
   response, revealed record and clip (Sprint 4);
 - a draft coding codebook, `docs/INTENT_CODEBOOK.md` (not yet calibrated or
-  frozen).
+  frozen);
+- `intent-report`, a deterministic JSON report labelled synthetic: recovery,
+  contradiction and survival per clip and component, delivery strata,
+  comprehension disruption, viewer calibration, the ambiguity list, and
+  Krippendorff's alpha with a bootstrap interval (shared function in
+  `metrics.py`) (Sprint 4).
 
 Still missing:
 
-- adjudication records (Sprint 3; shape to agree with Teams A and B);
-- thesis, hook, proof, offer, CTA, and critical-beat survival metrics, and
-  coder agreement (Sprint 4);
+- adjudication records (shape proposed to Teams A and B in
+  `docs/ADJUDICATION_PROPOSAL.md`); until then, survival is reported only
+  where coders agree;
+- offer and critical-beat measures (not in the sealed records); thesis, hook,
+  proof and CTA are reported only as derived labels on their fields;
+- evaluator comparison, which needs an intent evaluator-output contract;
 - separation between observable recovery and perceived persuasion in reporting.
   Stage 1 collects no persuasion items.
 

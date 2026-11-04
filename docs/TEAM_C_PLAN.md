@@ -37,9 +37,10 @@ Still to do: link the cards to PR #23 and this branch on the portal (team task).
 **Next steps, in order**
 
 1. ~~Build coder sheets and code import.~~ Done in Sprint 4, 2026-11-04 (`ouro_eval_lab/coding.py`, `tests/test_intent_coding.py`).
-2. *(Proposal written 2026-11-04: `docs/ADJUDICATION_PROPOSAL.md`; send it to the delegates.)* Propose the adjudication record shape to the Team A and B delegates, then build it.
-3. Team: calibrate the codebook on the practice anchors; freeze it with the pre-registration.
-4. Team: send the sponsor questions (vocabulary mapping, custodian; record format and `offer`/`required_beats` are now answered by the PR #23 review); name the open roles.
+2. *(Proposal `docs/ADJUDICATION_PROPOSAL.md` sent to the delegates 2026-11-04; awaiting reply.)* Propose the adjudication record shape to the Team A and B delegates, then build it.
+3. ~~Sprint 4 metrics and `intent-report`.~~ Built 2026-11-04 (`ouro_eval_lab/intent_metrics.py`). Left: tell Teams A and B about the shared alpha; the evaluator-output contract proposal.
+4. Team: calibrate the codebook on the practice anchors; freeze it with the pre-registration.
+5. Team: send the sponsor questions (vocabulary mapping, custodian; record format and `offer`/`required_beats` are now answered by the PR #23 review); name the open roles.
 
 **Known issues**
 
@@ -128,16 +129,18 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 ## Sprint 4: Metrics, agreement, calibration and abstention
 
-- [ ] `ouro_eval_lab/intent_metrics.py`: per component and clip, recovery rate with Wilson CI, survival under the pre-registered rule, contradicted rate
-- [ ] Stratify by delivery code
-- [ ] Comprehension disruption share
-- [ ] Krippendorff's alpha (nominal and ordinal) with bootstrap CI, as a shared reusable function; tell Teams A and B
-- [ ] Viewer certainty vs coded recovery (human calibration, separate from evaluator calibration)
-- [ ] Ambiguity and abstention reference class
+*Started 2026-11-04 on `team-c/sprint3-reveal-coding`. Survival and the reference code use agreed codes only until adjudication exists; disagreements show as `pending_adjudication`.*
+
+- [x] `ouro_eval_lab/intent_metrics.py`: per component and clip, recovery rate with Wilson CI, survival under the pre-registered rule, contradicted rate *(plus partial-credit sensitivity, labelled exploratory; cells with < 3 responses are `insufficient_responses`)*
+- [x] Stratify by delivery code *(primary components)*
+- [x] Comprehension disruption share *(delivered primary components coded `not_recovered` or `contradicted`)*
+- [~] Krippendorff's alpha (nominal and ordinal) with bootstrap CI, as a shared reusable function; tell Teams A and B *(`krippendorff_alpha` and `bootstrap_alpha_interval` in shared `metrics.py`, checked against Krippendorff's published example; still to tell Teams A and B)*
+- [x] Viewer certainty vs coded recovery (human calibration, separate from evaluator calibration) *(mean certainty by reference code; confidently wrong = contradicted with certainty 4–5)*
+- [x] Ambiguity and abstention reference class *(viewers split or coders split, §8; listed by cell)*
 - [ ] Propose the intent evaluator-output contract through the council; then false PASS/false HOLD, Brier, ECE and risk-vs-coverage (synthetic demo outputs only until the sponsor provides frozen outputs)
 - [ ] Recovery vs persuasion: separate table and report section, only if FIU approves
-- [ ] `intent-report` CLI: deterministic JSON with `synthetic_demo`, disclaimer, seeds, and hashes of manifest, freeze, revealed records and codes
-- [ ] Tests: hand-computed alpha fixtures, edge cases, survival boundaries, report determinism
+- [x] `intent-report` CLI: deterministic JSON with `synthetic_demo`, disclaimer, seeds, and hashes of manifest, freeze, revealed records and codes *(clips are bound by their artifact SHA-256, which the reveal checked against the manifest, rather than by a manifest file hash; also records the code commit, contract and codebook versions, and import hashes; no timestamps, IDs or free text)*
+- [x] Tests: hand-computed alpha fixtures, edge cases, survival boundaries, report determinism *(`tests/test_intent_metrics.py`, 18 tests)*
 
 ## Sprint 5: Failure views, anchors, rerun, final report
 

@@ -281,6 +281,44 @@ code, confidence, note, codebook version, coding contract version and time.
 so it can be recomputed from the database. All three tables are append-only by
 trigger; `(coder_id, response_id, component)` is unique.
 
+### Intent report (report version `1.0.0`)
+
+`intent-report --db <db> --out <json> [--seed 20261014] [--samples 2000]`
+writes the pre-registered analysis (`docs/TEAM_C_PREREGISTRATION.md` §5–8) as
+JSON with sorted keys. It is refused before a reveal or with no codes. The same
+database, arguments and `--code-commit` always give the same bytes: the report
+holds no timestamps, viewer or coder IDs, response IDs, recall text or notes.
+
+- Top level: `synthetic_demo: true`, a disclaimer, `versions` (code commit,
+  intent, response and coding contracts, codebook versions), `parameters`
+  (seed, resamples, Wilson z, survival rule, primary and exploratory
+  components, sheet seeds), `inputs` (response freeze SHA-256, commitments
+  SHA-256, each revealed record's and clip's SHA-256, codes SHA-256, import
+  SHA-256s, coder count), `exclusions`, and `evaluator_comparison` and
+  `persuasion`, both marked not available.
+- Reference code: the code when at least two coders agree. Otherwise the unit
+  is `single_coded`, `uncoded` or `pending_adjudication` and has no reference
+  code until an adjudication record exists.
+- `results.cells`, one per (clip, component): delivery, reference code counts,
+  recovery and contradicted rates with 95% Wilson intervals (over reference
+  codes other than `not_applicable`), survival (`survived`, `not_survived`,
+  `insufficient_responses` under 3, `pending_adjudication`,
+  `incomplete_coding`, or `not_applicable`), the exploratory partial-credit
+  survival, and ambiguity (viewers split or coders split).
+- `results.agreement`: Krippendorff's alpha over the raw codes, excluding
+  `not_intended` units, whose code is forced. Primary: nominal over the six
+  primary components, with a 95% percentile bootstrap that resamples responses
+  within clip, plus the pre-registered interpretation band. Exploratory:
+  ordinal (`not_recovered` < `partially_recovered` < `recovered`), tone, and
+  per-component alpha.
+- Also: pooled rates by component and by delivery, the comprehension
+  disruption share, viewer calibration (certainty by reference code and
+  confidently wrong), and the list of ambiguous primary cells.
+
+`krippendorff_alpha` and `bootstrap_alpha_interval` live in the shared
+`ouro_eval_lab/metrics.py` and accept any labels, so Teams A and B can use them
+for annotation verdicts.
+
 ## Adjudication
 
 Adjudication is stored as a separate append-only decision linked to annotations. It must never modify or delete a rater's original response.

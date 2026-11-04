@@ -11,7 +11,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 |---|---|
 | `team-c/sprint1-walking-skeleton` | Pushed. Sprint 1 docs. No PR (team approved). |
 | `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). 2026-11-04: `main` had moved ~40 commits and conflicted in 11 files; merged `main` in and resolved (`70df507`). Awaiting re-review. |
-| `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal command, codebook draft and this tracker; Sprint 2 fixes merged in; coder sheets and code import added in Sprint 4 (2026-11-04). No PR yet (open one after PR #23 merges, or when Sprint 3 is complete). |
+| `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal command, codebook draft and this tracker; Sprint 2 fixes merged in; coder sheets, code import and the Sprint 4 metrics added (2026-11-04). **PR #39** into `main` (opened 2026-11-04; builds on #23, so merge #23 first). |
 
 **PR #23 review (2026-10-19), all addressed**
 

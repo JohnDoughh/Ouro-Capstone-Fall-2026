@@ -1,69 +1,45 @@
-# Proposal: one adjudication record shape for Teams A, B and C
+# Proposal: how we record adjudication decisions
 
-Status: **PROPOSAL from Team C, 2026-11-04. Not agreed.** For the Team A and
-Team B integration delegates to accept, amend or reject. Nothing in the shared
-schema changes until all three delegates agree.
+**From Team C, 2026-11-04. Draft for the Team A and B delegates. Not agreed.**
 
-## Why
+## The problem
 
-All three teams must keep raw judgments and disagreement, and store
-adjudication separately (`AGENTS.md`, `TEAM_SLICES.md` item 4). The existing
-shared `adjudications` table (`ouro_eval_lab/store.py`) cannot do that yet:
+When two reviewers disagree, someone has to decide the final answer. All three
+teams must keep both original answers and store that decision separately.
 
-- it links a decision to an artifact, not to the judgments it resolves, so a
-  reader cannot tell which disagreement was settled;
-- it has no append-only triggers, so a decision can be edited or deleted;
-- it has no method, rule version or reason code, so an analysis cannot filter
-  or audit decisions.
+The shared `adjudications` table can't do this yet. It doesn't say which
+answers a decision settles, and nothing stops someone editing or deleting a
+decision. Team C needs this now, so we'd like one shared design rather than
+three.
 
-Team C needs adjudication now (Sprint 3: two coders disagree on a recovery
-code). We would rather agree one shape than build three.
+## The idea
 
-## Proposed record
+Each decision is a new record that says:
 
-One append-only table per study, all with the same columns. Team C would use
-`intent_adjudications`; Teams A and B could use the existing table name once
-it is migrated, or a new one.
+- **what** was decided (a clip, or for Team C one viewer answer on one field);
+- **which original answers** it settles (at least two);
+- **the final answer**;
+- **who decided**: someone who wasn't one of the original reviewers;
+- **how**: by discussion, a third reviewer, or a pre-agreed rule;
+- **why**: a short reason;
+- **when**, and which codebook or protocol version applied.
 
-| Column | Meaning |
-|---|---|
-| `adjudication_id` | Random token. |
-| `unit` | What is being decided, as a stable key. A/B: `artifact_sha256`. C: `response_id` + `:` + component. |
-| `resolves` | JSON list of the raw judgment IDs this decision settles (annotation IDs for A/B, coding IDs for C). At least two, all for the same unit, all existing. |
-| `reference_value` | The decided label. A/B: `PASS`/`HOLD`. C: a recovery code. Validated against the study's own vocabulary. |
-| `adjudicator_id` | Pseudonymous ID. **Must not** be the author of any resolved judgment. |
-| `method` | `discussion`, `third_judge` or `pre_registered_rule`. |
-| `rule_version` | The codebook or protocol version applied, e.g. `intent-codebook 0.1-draft`. |
-| `reason` | Short text, at most 300 characters, no contact details. |
-| `supersedes` | Optional earlier `adjudication_id` for the same unit. A correction is a new row that names the old one; nothing is overwritten. |
-| `created_at` | UTC timestamp. |
+Four ground rules:
 
-Rules, enforced in code and tests:
+1. Decisions are never edited or deleted. To fix one, add a new decision that
+   points to the old one.
+2. Only real disagreements get a decision. If reviewers agree, their answer
+   stands.
+3. Agreement scores always use the original answers, never the decisions.
+4. Decisions are exported separately from the original answers.
 
-1. Triggers reject every `UPDATE` and `DELETE`.
-2. Only units with a real disagreement can be adjudicated; agreement already
-   gives the reference label.
-3. The reference label for a unit is the latest non-superseded adjudication,
-   else the agreed raw value. One shared helper computes it for all teams.
-4. Agreement statistics (kappa, Krippendorff's alpha) always use the raw
-   judgments, never adjudicated values.
-5. Exports list adjudications in a separate file or section with its own
-   SHA-256, never merged into the raw judgments.
+## Questions for you
 
-## Questions for the delegates
+1. One shared table for all teams, or one per team with the same columns?
+2. Should someone who reviewed the item be barred from deciding it?
+3. Do visual and audio review need any other way of deciding?
+4. Do `UNSURE` answers need a decision, or are they left out?
+5. Who updates the existing shared table? It's empty in the public demo.
 
-1. Is a per-study table with identical columns acceptable, or do you want one
-   shared table with a `study` column?
-2. Should the adjudicator be barred from the judgments they resolve (proposed),
-   or only recorded?
-3. Is the `method` list complete for visual and audio review?
-4. Should `UNSURE` annotations (Teams A/B) count as disagreement that needs
-   adjudication, or be excluded?
-5. Who owns the migration of the existing `adjudications` table, which holds
-   no rows in the public demo?
-
-## What Team C does meanwhile
-
-Team C will not touch the shared table. Once the shape is agreed (or amended),
-Team C builds `intent_adjudications` and an `adjudicate-intent` command first,
-with the shared reference-label helper, so Teams A and B can reuse both.
+Until we agree, Team C won't touch the shared table. Afterwards we'll build our
+version first and share the code, so Teams A and B can reuse it.

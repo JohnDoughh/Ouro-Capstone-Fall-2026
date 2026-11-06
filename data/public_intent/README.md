@@ -26,8 +26,8 @@ Each record uses the same bounded fields: `audience`, `problem`, `product`, `key
    ```sh
    python3 scripts/verify_intent_reveal.py --records /path/to/revealed/records
    ```
-   Any mismatch invalidates the reveal. The script also checks each matching record against the intent-record contract (`docs/DATA_CONTRACT.md`); use `--skip-schema` to check commitments alone.
-5. **Separate coding.** Coders who did not watch as viewers compare each frozen response to the record, field by field, with Team C's codebook. Agreement between coders is reported. Nothing here is an AVC score or a probability.
+   Any mismatch invalidates the reveal. The script also checks each matching record against the intent-record contract (`docs/DATA_CONTRACT.md`); use `--skip-schema` to check commitments alone. To load the records into the lab for coding, run `python3 -m ouro_eval_lab.cli reveal --db data/intent-demo.db --records /path/to/revealed/records`; it refuses until step 3's freeze exists.
+5. **Separate coding.** Coders who did not watch as viewers compare each frozen response to the record, field by field, with Team C's codebook (`docs/INTENT_CODEBOOK.md`). Agreement between coders is reported. Nothing here is an AVC score or a probability.
 
 ## Limits
 

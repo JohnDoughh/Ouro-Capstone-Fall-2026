@@ -424,6 +424,11 @@ class IntentApiTests(unittest.TestCase):
         })
         with urllib.request.urlopen(f"{base}/api/health") as response:
             self.assertEqual(json.load(response)["study"], "intent")
+        # Saved PASS/HOLD review belongs to the annotation study only.
+        with self.assertRaises(urllib.error.HTTPError) as saved:
+            urllib.request.urlopen(f"{base}/api/saved-annotations?rater=viewer-a")
+        self.assertEqual(saved.exception.code, 404)
+        saved.exception.close()
 
     def test_intent_study_does_not_expose_annotation_inspection(self):
         directory = self.enterContext(scratch())
@@ -442,6 +447,7 @@ class IntentApiTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as caught:
                 urllib.request.urlopen(f"{base}/api/saved-annotations?rater=viewer-a")
             self.assertEqual(caught.exception.code, 404)
+            caught.exception.close()
 
     def test_intent_post_has_receipt_replay_conflict_and_rejection_semantics(self):
         directory = self.enterContext(scratch())

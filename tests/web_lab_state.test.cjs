@@ -53,7 +53,8 @@ function harness(replies, mediaModes = [], storage = {entries: new Map()}) {
       createElement: tag => {
         const listeners = new Map();
         const node = {
-          tag, children: [], append(child) { this.children.push(child); }, setAttribute() {}, removeAttribute() {}, load() {},
+          tag, children: [], append(child) { this.children.push(child); },
+          setAttribute() {}, removeAttribute() {}, load() {},
           play() { node.played = (node.played || 0) + 1; return Promise.resolve(); },
           addEventListener(name, callback) {
             if (!listeners.has(name)) listeners.set(name, new Set());
@@ -584,40 +585,6 @@ test('an older media failure cannot clear a newer loaded assignment', async () =
   assert.equal(lab.element('submit').disabled, false);
 });
 
-
-test('saved cards are opt-in, hide without fetching, and clear on fetch failure', async () => {
-  const saved = {schema_version: 'saved-review-v1', annotations: [{
-    review_label: 'Item 001', note: '<script>literal evidence</script>', verdict: 'HOLD',
-    reason_codes: ['audio_integrity'], severity: 3, confidence: 5, confidence_scale: '1-5',
-    defect_timestamps: '00:04-00:05', artifact_id: 'syn-tone-b', artifact_sha256: 'a'.repeat(64),
-    annotation_id: 'saved-1', started_at: 'start', completed_at: 'end',
-  }]};
-  const lab = harness([
-    {ok: true, body: {assignment: null, progress: {total: 3, completed: 3}}},
-    {ok: true, body: saved},
-    {ok: false, body: {error: 'Access denied'}},
-  ]);
-  await lab.signIn();
-  assert.equal(lab.requests.length, 1);
-  assert.equal(lab.element('saved-records').children.length, 0);
-  await lab.element('load-saved').listeners.click();
-  const card = lab.element('saved-records').children[0];
-  assert.equal(card.tag, 'article');
-  assert.equal(card.children[3].textContent, '<script>literal evidence</script>');
-  assert.equal(lab.element('load-saved').textContent, 'Hide annotations');
-  const download = JSON.parse(decodeURIComponent(lab.element('saved-download').href.split(',').slice(1).join(',')));
-  assert.deepEqual(download, saved);
-  assert.equal(lab.requests[1].url, '/api/saved-annotations?rater=rater-a');
-  await lab.element('load-saved').listeners.click();
-  assert.equal(lab.requests.length, 2);
-  assert.equal(lab.element('saved-records').children.length, 0);
-  assert.equal(lab.element('saved-panel').classList.contains('hidden'), true);
-  await lab.element('load-saved').listeners.click();
-  assert.equal(lab.element('saved-records').children.length, 0);
-  assert.equal(lab.element('saved-error').textContent, 'Access denied');
-  assert.equal(lab.element('load-saved').disabled, false);
-});
-
 test('a phone number is refused as a rater ID before any request', async () => {
   for (const rater of ['305-555-0100', '3055550100', 'rater_3055550100']) {
     const lab = harness([]);
@@ -677,7 +644,6 @@ test('intent study plays a limited clip and posts recall to its own endpoint', a
   await lab.signIn();
   assert.equal(lab.element('intent-fields').classList.contains('hidden'), false);
   assert.equal(lab.element('annotation-fields').classList.contains('hidden'), true);
-  assert.equal(lab.element('load-saved').classList.contains('hidden'), true);
   assert.equal(lab.element('decision-title').textContent, 'What was this ad trying to tell you?');
   const video = lab.element('media').children[0];
   assert.equal(video.controls, false);
@@ -957,6 +923,39 @@ test('a play refused by a frozen collection closes without playing', async () =>
   await lab.element('play-clip').listeners.click();
   assert.equal(video.played, undefined);
   assertClosed(lab, {unsaved: false});
+});
+
+test('saved cards are opt-in, hide without fetching, and clear on fetch failure', async () => {
+  const saved = {schema_version: 'saved-review-v1', annotations: [{
+    review_label: 'Item 001', note: '<script>literal evidence</script>', verdict: 'HOLD',
+    reason_codes: ['audio_integrity'], severity: 3, confidence: 5, confidence_scale: '1-5',
+    defect_timestamps: '00:04-00:05', artifact_id: 'syn-tone-b', artifact_sha256: 'a'.repeat(64),
+    annotation_id: 'saved-1', started_at: 'start', completed_at: 'end',
+  }]};
+  const lab = harness([
+    {ok: true, body: {assignment: null, progress: {total: 3, completed: 3}}},
+    {ok: true, body: saved},
+    {ok: false, body: {error: 'Access denied'}},
+  ]);
+  await lab.signIn();
+  assert.equal(lab.requests.length, 1);
+  assert.equal(lab.element('saved-records').children.length, 0);
+  await lab.element('load-saved').listeners.click();
+  const card = lab.element('saved-records').children[0];
+  assert.equal(card.tag, 'article');
+  assert.equal(card.children[3].textContent, '<script>literal evidence</script>');
+  assert.equal(lab.element('load-saved').textContent, 'Hide annotations');
+  const download = JSON.parse(decodeURIComponent(lab.element('saved-download').href.split(',').slice(1).join(',')));
+  assert.deepEqual(download, saved);
+  assert.equal(lab.requests[1].url, '/api/saved-annotations?rater=rater-a');
+  await lab.element('load-saved').listeners.click();
+  assert.equal(lab.requests.length, 2);
+  assert.equal(lab.element('saved-records').children.length, 0);
+  assert.equal(lab.element('saved-panel').classList.contains('hidden'), true);
+  await lab.element('load-saved').listeners.click();
+  assert.equal(lab.element('saved-records').children.length, 0);
+  assert.equal(lab.element('saved-error').textContent, 'Access denied');
+  assert.equal(lab.element('load-saved').disabled, false);
 });
 
 const REFERENCE = 'a'.repeat(64);

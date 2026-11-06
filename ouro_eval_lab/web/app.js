@@ -10,9 +10,6 @@ const MAX_SAVE_BYTES = 16384;
 // The server runs one study. Each has its own endpoint and receipt field.
 const STUDY_ENDPOINTS = {annotation: '/api/annotations/', intent: '/api/intent-responses/'};
 const RECEIPT_KEYS = {annotation: 'annotation_id', intent: 'response_id'};
-// Annotation contract 2.2.0 HOLD evidence. The rubric version is sent only
-// alongside at least one other evidence value, so a bare HOLD stays valid.
-const EVIDENCE_VALUES = ['defect_family_id', 'region', 'reference_id', 'evidence_description'];
 const INTENT_LABELS = {
   audience: 'who it is for', problem: 'the problem', product: 'the product',
   key_benefit: 'the main benefit', support: 'what backs it up',
@@ -21,6 +18,7 @@ const INTENT_LABELS = {
 
 // Mirrors the server: a rater ID must never be a phone number.
 const PHONE_LIKE = /(?<!\d)\d{3}[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/;
+const EVIDENCE_VALUES = ['defect_family_id', 'region', 'reference_id', 'evidence_description'];
 
 function validRaterId(value) {
   const characters = [...value];
@@ -127,36 +125,22 @@ function showStudy(study) {
   const intent = state.study === 'intent';
   $('annotation-fields').classList[intent ? 'add' : 'remove']('hidden');
   $('intent-fields').classList[intent ? 'remove' : 'add']('hidden');
-  $('load-saved').classList[intent ? 'add' : 'remove']('hidden');
   $('decision-kicker').textContent = intent ? 'Your independent recall' : 'Your independent judgment';
   $('decision-title').textContent = intent ? 'What was this ad trying to tell you?' : 'Should this artifact proceed?';
   $('submit').textContent = intent ? 'Submit answers' : 'Submit judgment';
-}
-
-function showEvidence(verdict) {
-  // PASS and UNSURE never collect evidence; the inputs stay hidden and unsent.
-  $('evidence-fields').classList[verdict === 'HOLD' ? 'remove' : 'add']('hidden');
-}
-
-function evidenceBody(form) {
-  const evidence = {};
-  for (const field of EVIDENCE_VALUES) {
-    const value = String(form.get(field) ?? '').trim();
-    if (value) evidence[field] = field === 'defect_family_id' ? Number(value) : value;
-  }
-  if (Object.keys(evidence).length) evidence.rubric_version = String(form.get('rubric_version') ?? '');
-  return evidence;
+  // Saved PASS/HOLD review exists only in the annotation study.
+  $('load-saved').classList[intent ? 'add' : 'remove']('hidden');
 }
 
 function annotationBody(form) {
   const reason_codes = [...document.querySelectorAll('input[name=reason]:checked')].map(input => input.value);
-  const verdict = form.get('verdict');
   return {
-    verdict,
+    verdict: form.get('verdict'),
+    // Evidence travels only with HOLD (annotation contract 2.2.0).
+    ...(form.get('verdict') === 'HOLD' ? evidenceBody(form) : {}),
     confidence: Number(form.get('confidence')),
     severity: Number(form.get('severity')),
     defect_timestamps: String(form.get('defect_timestamps') || '').trim(),
-    ...(verdict === 'HOLD' ? evidenceBody(form) : {}),
     reason_codes,
     note: $('note').value,
   };
@@ -282,6 +266,21 @@ async function playClip() {
     $('error').textContent = 'The clip could not start; press Play to try again.';
   }
   updatePlayControls();
+}
+
+function showEvidence(verdict) {
+  // PASS and UNSURE never collect evidence; the inputs stay hidden and unsent.
+  $('evidence-fields').classList[verdict === 'HOLD' ? 'remove' : 'add']('hidden');
+}
+
+function evidenceBody(form) {
+  const evidence = {};
+  for (const field of EVIDENCE_VALUES) {
+    const value = String(form.get(field) ?? '').trim();
+    if (value) evidence[field] = field === 'defect_family_id' ? Number(value) : value;
+  }
+  if (Object.keys(evidence).length) evidence.rubric_version = String(form.get('rubric_version') ?? '');
+  return evidence;
 }
 
 $('signin-form').addEventListener('submit', async event => {
@@ -598,6 +597,7 @@ function renderSavedAnnotations(records) {
         ['Reference SHA-256', record.reference_id || 'None recorded'],
         ['Evidence', record.evidence_description || 'None recorded'],
       ]),
+
     ]) {
       const field = document.createElement('div');
       field.append(savedText('dt', label));

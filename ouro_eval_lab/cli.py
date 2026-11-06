@@ -3,21 +3,60 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 from .api import serve
 from .contracts import validate_manifest
 from .fixtures import generate
 from .runner import (
-    agreement_report, compare_responses, export_annotations, export_intent_responses, inspect_native_avc,
-    load_json, run_benchmark, verify_manifest,
+    agreement_report, compare_responses, export_annotations, export_intent_responses,
+    inspect_native_avc, load_json, run_benchmark, verify_manifest,
 )
+from .coding import DEFAULT_SHEET_SEED, CodingRefused, import_codes, issue_sheet
+from .intent_metrics import (
+    DEFAULT_SAMPLES as INTENT_SAMPLES, DEFAULT_SEED as INTENT_SEED, build_intent_report,
+    render_intent_report,
+)
+from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
 from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
 
 
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
+
+
+@contextmanager
+def _new_intent_output(path: Path):
+    """Reserve a new private file before touching the study database.
+
+    Exclusive creation refuses existing files, directories and symlinks,
+    including hard-link aliases of the database or any frozen input. A
+    failed operation removes only the file this operation created.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+    identity = os.fstat(descriptor)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            yield output
+    except BaseException:
+        try:
+            current = path.lstat()
+            if (current.st_dev, current.st_ino) == (identity.st_dev, identity.st_ino):
+                path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def _durable_write(output, body: bytes) -> None:
+    output.write(body)
+    output.flush()
+    os.fsync(output.fileno())
 
 
 def bootstrap_demo(root: Path, db_path: Path, seed: int) -> tuple[Path, Path, int]:
@@ -32,6 +71,18 @@ def bootstrap_demo(root: Path, db_path: Path, seed: int) -> tuple[Path, Path, in
     initialize(db_path)
     count = ingest(db_path, verified["manifest"], manifest_path.parent)
     return manifest_path, outputs_path, count
+
+
+def _code_commit() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10,
+            cwd=Path(__file__).resolve().parents[1],
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unrecorded"
+    commit = result.stdout.strip()
+    return commit if result.returncode == 0 and len(commit) == 40 else "unrecorded"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,12 +115,42 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--db", type=Path, required=True)
     export.add_argument("--out", type=Path, required=True)
     export.add_argument("--format", choices=["json", "csv"], default="json")
+    reveal_cmd = sub.add_parser(
+        "reveal", help="verify sealed intent records and load them; refused before export-intent",
+    )
+    reveal_cmd.add_argument("--db", type=Path, required=True)
+    reveal_cmd.add_argument("--records", type=Path, required=True, help="directory of revealed *.intent.json files")
+    reveal_cmd.add_argument("--commitments", type=Path, default=INTENT_DIR / "intent_commitments.sha256")
+    reveal_cmd.add_argument("--manifest", type=Path, default=INTENT_DIR / "manifest.json")
     export_intent = sub.add_parser(
         "export-intent", help="freeze Stage 1 intent responses before reveal; closes collection",
     )
     export_intent.add_argument("--db", type=Path, required=True)
     export_intent.add_argument("--out", type=Path, required=True)
     export_intent.add_argument("--format", choices=["json", "csv"], default="json")
+    sheet_cmd = sub.add_parser(
+        "intent-coding-sheet", help="write one coder's blinded Stage 2 coding sheet (CSV); after reveal",
+    )
+    sheet_cmd.add_argument("--db", type=Path, required=True)
+    sheet_cmd.add_argument("--coder", required=True, help="pseudonymous coder ID")
+    sheet_cmd.add_argument("--out", type=Path, required=True)
+    sheet_cmd.add_argument("--seed", type=int, default=DEFAULT_SHEET_SEED, help="item-order seed (recorded)")
+    import_cmd = sub.add_parser(
+        "intent-import-codes", help="validate a filled coding sheet and append its codes",
+    )
+    import_cmd.add_argument("--db", type=Path, required=True)
+    import_cmd.add_argument("--coder", required=True, help="pseudonymous coder ID the sheet was issued to")
+    import_cmd.add_argument("--codes", type=Path, required=True, help="the filled coding sheet CSV")
+    intent_report = sub.add_parser(
+        "intent-report", help="write the deterministic intent metrics report (JSON) from coded responses",
+    )
+    intent_report.add_argument("--db", type=Path, required=True)
+    intent_report.add_argument("--out", type=Path, required=True)
+    intent_report.add_argument("--seed", type=int, default=INTENT_SEED, help="bootstrap seed (pre-registered)")
+    intent_report.add_argument("--samples", type=int, default=INTENT_SAMPLES, help="bootstrap resamples")
+    intent_report.add_argument(
+        "--code-commit", default=None, help="commit to record; defaults to git HEAD when available",
+    )
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
@@ -136,20 +217,85 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "export-intent":
         if not args.db.is_file():
             parser.error("export-intent requires an existing local lab database")
-        with connect(args.db) as db:
-            # Hold the write lock from export to freeze so no response can be
-            # accepted after the export query but before collection closes.
-            db.execute("BEGIN IMMEDIATE")
-            body, count = export_intent_responses(db, args.format)
-            if count == 0:
-                parser.error("no intent responses to freeze")
-            digest = hashlib.sha256(body).hexdigest()
-            args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_bytes(body)
-            freeze = record_intent_freeze(db, digest, args.format, count)
+        try:
+            with _new_intent_output(args.out) as output, connect(args.db) as db:
+                # Hold the write lock from export to freeze so no response can be
+                # accepted after the export query but before collection closes.
+                db.execute("BEGIN IMMEDIATE")
+                body, count = export_intent_responses(db, args.format)
+                if count == 0:
+                    parser.error("no intent responses to freeze")
+                digest = hashlib.sha256(body).hexdigest()
+                _durable_write(output, body)
+                freeze = record_intent_freeze(db, digest, args.format, count)
+        except OSError as exc:
+            parser.error(f"intent output requires a new writable path: {exc.strerror}")
         print(f"froze {count} intent responses to {args.out}")
         print(f"sha256 {digest}  freeze {freeze['freeze_id']}")
         print("intent collection is now closed; record this SHA-256 before any reveal")
+    elif args.command == "reveal":
+        if not args.db.is_file():
+            parser.error("reveal requires an existing local lab database")
+        initialize(args.db)
+        try:
+            with connect(args.db) as db:
+                db.execute("BEGIN IMMEDIATE")
+                result = reveal(db, args.records, args.commitments, args.manifest)
+        except RevealRefused as exc:
+            parser.error(str(exc))
+        if result["already_revealed"]:
+            print(f"already revealed: the same {result['record_count']} intent records; nothing changed")
+        else:
+            print(f"revealed {result['record_count']} intent records after freeze {result['freeze_sha256']}")
+    elif args.command in {"intent-coding-sheet", "intent-import-codes"}:
+        if not args.db.is_file():
+            parser.error(f"{args.command} requires an existing local lab database")
+        try:
+            if args.command == "intent-coding-sheet":
+                with _new_intent_output(args.out) as output:
+                    initialize(args.db)
+                    with connect(args.db) as db:
+                        db.execute("BEGIN IMMEDIATE")
+                        result = issue_sheet(db, args.coder, args.seed)
+                        _durable_write(output, result["body"])
+            else:
+                initialize(args.db)
+                with connect(args.db) as db:
+                    db.execute("BEGIN IMMEDIATE")
+                    result = import_codes(db, args.coder, args.codes.read_bytes())
+        except OSError as exc:
+            parser.error(f"intent file requires a new writable output or readable input: {exc.strerror}")
+        except (CodingRefused, ValueError) as exc:
+            parser.error(str(exc))
+        if args.command == "intent-coding-sheet":
+            state = "rebuilt the recorded" if result["reissued"] else "issued a"
+            print(f"{state} sheet of {result['item_count']} items to {args.out}")
+            print(f"sha256 {result['sheet_sha256']}  seed {args.seed}")
+            print("the sheet holds revealed intent text: give it only to this coder")
+        else:
+            print(f"imported {result['coded']} codes ({result['unchanged']} already stored, "
+                  f"{result['uncoded']} left blank)")
+            print(f"sha256 {result['import_sha256']}")
+    elif args.command == "intent-report":
+        if not args.db.is_file():
+            parser.error("intent-report requires an existing local lab database")
+        if args.samples < 1:
+            parser.error("--samples must be at least 1")
+        try:
+            with _new_intent_output(args.out) as output:
+                initialize(args.db)
+                with connect(args.db) as db:
+                    report = build_intent_report(
+                        db, args.seed, args.samples, args.code_commit or _code_commit(),
+                    )
+                    body = render_intent_report(report)
+                    _durable_write(output, body)
+        except OSError as exc:
+            parser.error(f"intent output requires a new writable path: {exc.strerror}")
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(f"wrote {args.out} (synthetic demo; not a research finding)")
+        print(f"sha256 {hashlib.sha256(body).hexdigest()}")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")

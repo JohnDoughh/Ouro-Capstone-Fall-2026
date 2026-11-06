@@ -11,14 +11,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .contracts import (
-    EVIDENCE_FIELDS, INTENT_MAX_PLAY_COUNT, ContractError, looks_like_phone_number, normalize_intent_response,
-    validate_annotation_payload, validate_intent_response_payload,
+    EVIDENCE_FIELDS, INTENT_MAX_PLAY_COUNT, ContractError, normalize_intent_response,
+    validate_annotation_payload, validate_intent_response_payload, validate_pseudonymous_id,
 )
+from .runner import EXPORT_FIELDS
 from .store import (
     CollectionFrozen, PlayRefused, connect, intent_collection_frozen, intent_plays_used,
     next_assignment, progress, record_intent_play, save_annotation, save_intent_response, saved_intent_receipt,
 )
-from .runner import EXPORT_FIELDS
 
 
 WEB_ROOT = Path(__file__).parent / "web"
@@ -106,12 +106,7 @@ class LabHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _rater(self, query: dict[str, list[str]]) -> str:
-        value = query.get("rater", [""])[0].strip()
-        if not value or len(value) > 80 or not all(ch.isalnum() or ch in "-_" for ch in value):
-            raise ValueError("rater must be a pseudonymous ID using letters, numbers, - or _")
-        if looks_like_phone_number(value):
-            raise ValueError("rater must be a pseudonymous ID, not a phone number")
-        return value
+        return validate_pseudonymous_id(query.get("rater", [""])[0], "rater")
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -119,6 +114,7 @@ class LabHandler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/api/health":
                 return self._json(200, {"status": "ok", "synthetic_demo": True, "study": self.study})
+            # Saved PASS/HOLD review belongs to the annotation study only.
             if parsed.path == "/api/saved-annotations" and self.study == "annotation":
                 rater = self._rater(query)
                 with closing(sqlite3.connect(self.db_path.resolve().as_uri() + "?mode=ro", uri=True)) as db:

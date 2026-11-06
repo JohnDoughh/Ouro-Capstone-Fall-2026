@@ -38,7 +38,7 @@ Allowed verdicts are `PASS` and `HOLD`. Confidence is the probability assigned t
 
 ## Human annotation
 
-Human annotation contract version: `2.2.0`. Annotations include pseudonymous `rater_id`, assignment ID, artifact SHA, `PASS`/`HOLD`/`UNSURE`, integer confidence from 1 to 5, integer severity from 0 to 3, optional defect timestamps, controlled reason codes, optional short note, and start/completion timestamps. The accepted reason codes for new submissions are `visual_integrity`, `audio_integrity`, `temporal_integrity`, and `intent_integrity`; the list may be empty but may not contain duplicates or unknown codes. This enforces the existing controlled vocabulary without rewriting historical stored annotations or exports. Confidence is ordinal and distinct from evaluator-output probability in contract `1.0.0`. Severity 0 means no observable defect; 1 is minor; 2 is moderate; 3 is severe. Severity records observed impact independently from the verdict; the common PASS/HOLD alignments are guidance, not validation rules. Defect timestamps are reviewer-entered text up to 240 characters; separate multiple points/ranges with semicolons, for example `00:04-00:05; 00:08`. The API resolves the rater from the assignment and never accepts an artifact ID supplied by the browser.
+Human annotation contract version: `2.2.0`. Annotations include pseudonymous `rater_id`, assignment ID, artifact SHA, `PASS`/`HOLD`/`UNSURE`, integer confidence from 1 to 5, integer severity from 0 to 3, optional defect timestamps, controlled reason codes, optional short note, and start/completion timestamps. The accepted reason codes for new submissions are `visual_integrity`, `audio_integrity`, `temporal_integrity`, and `intent_integrity`; the list may be empty but may not contain duplicates or unknown codes. This enforces the existing controlled vocabulary without rewriting historical stored annotations or exports. Confidence is ordinal and distinct from evaluator-output probability in contract `1.0.0`. Severity 0 means no observable defect; 1 is minor; 2 is moderate; 3 is severe. Severity records observed impact independently from the verdict; the common PASS/HOLD alignments are guidance, not validation rules. Defect timestamps are reviewer-entered text up to 240 characters; separate multiple points/ranges with semicolons, for example `00:04-00:05; 00:08`. The API resolves the rater from the assignment and never accepts an artifact ID supplied by the browser. Rater IDs are 1–80 letters, numbers, `-` or `_`; both the interface and the API also reject an ID that looks like a phone number, because a rater ID must stay pseudonymous.
 
 ### Structured defect evidence (2.2.0)
 
@@ -53,8 +53,6 @@ Contract `2.2.0` adds five optional evidence fields. They are allowed only on `H
 | `evidence_description` | string | What the reviewer saw, up to 500 characters. |
 
 If any evidence field is supplied, `rubric_version` and `defect_family_id` are both required. A `HOLD` without evidence remains valid. The rating form shows the evidence inputs only after HOLD is selected, sends only the values the rater filled in (adding `rubric_version` automatically when any are present), and sends none for PASS or UNSURE. Values are stored and exported exactly as submitted; omitted fields are stored as `null` and are never filled in. The exact-retry comparison includes every evidence field, so a retry with different evidence returns `409`. The rater's `defect_family_id` is a judgment and is distinct from the artifact's hidden `defect_family` truth label, which is still never sent to the browser.
-
-Rater IDs are 1–80 letters, numbers, `-` or `_`; the interface and API reject IDs that look like phone numbers.
 
 An annotation POST is serialized by assignment. The first accepted judgment returns `201` and its annotation ID/completion time. A retry of the same assignment, rater, and normalized judgment returns the original receipt with `200` and `replayed: true`; it neither creates nor changes an annotation. A different judgment for a completed assignment returns `409`. `400` is reserved for a definite pre-write validation rejection; storage/transaction ambiguity returns `503` or a transport failure. After an acknowledgement timeout, the browser freezes the original request in tab-scoped session storage and permits only an exact retry until it receives a receipt. A timeout is not evidence of rollback. Recovery across a closed tab or another device is not guaranteed. This is a delivery/retry clarification, not a change to stored annotation format or historical records.
 
@@ -76,8 +74,8 @@ change the annotation contract (then `2.1.0`) or rewrite saved judgments.
 ## Intent fidelity (Team C)
 
 Two separately versioned contracts serve the intent study. Neither changes
-annotation semantics (now contract `2.2.0`), the evaluator-output contract `1.0.0`, or any
-stored PASS/HOLD judgment.
+the PASS/HOLD annotation contract (now `2.2.0`), the evaluator-output contract
+`1.0.0`, or any stored PASS/HOLD judgment.
 
 ### Intent record `2.0.0`
 
@@ -238,6 +236,109 @@ already-saved response still receives its original receipt. After the freeze,
 `/api/next` returns `collection_closed: true` and no assignment. Exports contain the artifact SHA-256 but no artifact ID or
 filename. The freeze must exist before any intent record is revealed.
 
+### Reveal
+
+`reveal --db <db> --records <dir>` loads the sealed records into the lab. It
+refuses unless `intent_freezes` already holds a freeze, then runs the same
+commitment, manifest and contract checks as `scripts/verify_intent_reveal.py`,
+verifies the clip bytes against the manifest, and requires every clip to be
+loaded in the database. Any problem refuses the whole reveal; nothing partial
+is stored.
+
+A reveal appends one `intent_reveals` row (freeze ID and SHA-256, commitments
+file SHA-256, record count) and one `intent_records` row per clip (record
+SHA-256, artifact SHA-256, the exact committed record text, and the intent
+contract version). Both tables are append-only by trigger. Revealing the same
+records again changes nothing; revealing different records is refused.
+
+### Stage 2 coding (intent coding contract `1.0.0`)
+
+`intent-coding-sheet --db <db> --coder <id> --out <csv> [--seed 20261014]`
+writes one coder's sheet; it is refused before a reveal. The sheet has one row
+per (frozen response, component) with exactly these columns: `item`,
+`item_id`, `component`, `delivery`, `intended_text`, `viewer_recall`,
+`viewer_could_not_tell`, and the blank `code`, `confidence`, `note` columns
+the coder fills in.
+
+- Blinding: no viewer ID, viewer certainty, response ID, artifact ID, clip
+  name, artifact SHA-256, evaluator output or other coder's code appears on a
+  sheet. A coder gets no items for any clip they were assigned as a viewer.
+- Order: items are shuffled with `Random("<seed>:<coder>")`. `item_id` is the
+  first 24 hex characters of SHA-256 over the reveal ID, coder, response ID and
+  component, so IDs differ per coder and the sheet can be rebuilt.
+- Each coder gets one sheet, recorded in append-only `intent_coding_sheets`
+  (reveal ID, seed, item count, sheet SHA-256, codebook version, coding
+  contract version). Asking again with the same seed rebuilds identical bytes
+  and records nothing new; a different seed is refused.
+- `intended_text` and `viewer_recall` cells that begin with `=`, `+`, `-`, `@`,
+  tab or carriage return get a leading `'` so spreadsheet apps do not run them.
+  These columns are display only and are never read back.
+
+`intent-import-codes --db <db> --coder <id> --codes <csv>` validates a filled
+sheet (UTF-8, with or without a byte-order mark; only `item_id`, `code`,
+`confidence` and `note` are read). Any error rejects the whole file.
+
+- `code` is one of `recovered`, `partially_recovered`, `not_recovered`,
+  `contradicted`, `not_applicable`. A component whose delivery is
+  `not_intended` must be `not_applicable`, and `not_applicable` is allowed
+  only there.
+- `confidence` is 1, 2 or 3. `note` is at most 300 characters with no contact
+  details, and is required for `partially_recovered`, `contradicted` and
+  confidence 1.
+- Rows with no code, confidence and note are uncoded and skipped, so a coder
+  can import in parts. An `item_id` not on that coder's sheet, or listed twice,
+  is refused. Re-importing an identical code is a no-op; a different code for an
+  item already coded is refused. Errors name lines and rules, never text.
+
+Each accepted file appends one `intent_code_imports` row (file SHA-256, counts)
+and one `intent_codings` row per code. A code stores the coder ID, response ID,
+`response_sha256`, `record_sha256`, `artifact_sha256`, component, delivery,
+code, confidence, note, codebook version, coding contract version and time.
+`response_sha256` is SHA-256 over the stored response's columns
+(`response_id`, `assignment_id`, `rater_id`, `artifact_sha256`,
+`response_contract_version`, `components`, `other_beats`, `play_count`,
+`play_limit`, `started_at`, `completed_at`) as compact JSON with sorted keys,
+so it can be recomputed from the database. All three tables are append-only by
+trigger; `(coder_id, response_id, component)` is unique.
+
+### Intent report (report version `1.0.0`)
+
+`intent-report --db <db> --out <json> [--seed 20261014] [--samples 2000]`
+writes the pre-registered analysis (`docs/TEAM_C_PREREGISTRATION.md` §5–8) as
+JSON with sorted keys. It is refused before a reveal or with no codes. The same
+database, arguments and `--code-commit` always give the same bytes: the report
+holds no timestamps, viewer or coder IDs, response IDs, recall text or notes.
+
+- Top level: `synthetic_demo: true`, a disclaimer, `versions` (code commit,
+  intent, response and coding contracts, codebook versions), `parameters`
+  (seed, resamples, Wilson z, survival rule, primary and exploratory
+  components, sheet seeds), `inputs` (response freeze SHA-256, commitments
+  SHA-256, each revealed record's and clip's SHA-256, codes SHA-256, import
+  SHA-256s, coder count), `exclusions`, and `evaluator_comparison` and
+  `persuasion`, both marked not available.
+- Reference code: the code when at least two coders agree. Otherwise the unit
+  is `single_coded`, `uncoded` or `pending_adjudication` and has no reference
+  code until an adjudication record exists.
+- `results.cells`, one per (clip, component): delivery, reference code counts,
+  recovery and contradicted rates with 95% Wilson intervals (over reference
+  codes other than `not_applicable`), survival (`survived`, `not_survived`,
+  `insufficient_responses` under 3, `pending_adjudication`,
+  `incomplete_coding`, or `not_applicable`), the exploratory partial-credit
+  survival, and ambiguity (viewers split or coders split).
+- `results.agreement`: Krippendorff's alpha over the raw codes, excluding
+  `not_intended` units, whose code is forced. Primary: nominal over the six
+  primary components, with a 95% percentile bootstrap that resamples responses
+  within clip, plus the pre-registered interpretation band. Exploratory:
+  ordinal (`not_recovered` < `partially_recovered` < `recovered`), tone, and
+  per-component alpha.
+- Also: pooled rates by component and by delivery, the comprehension
+  disruption share, viewer calibration (certainty by reference code and
+  confidently wrong), and the list of ambiguous primary cells.
+
+`krippendorff_alpha` and `bootstrap_alpha_interval` live in the shared
+`ouro_eval_lab/metrics.py` and accept any labels, so Teams A and B can use them
+for annotation verdicts.
+
 ## Adjudication
 
 Adjudication is stored as a separate append-only decision linked to annotations. It must never modify or delete a rater's original response.
@@ -307,3 +408,15 @@ unchanged. This additive inspection contract does not migrate saved data.
 This synthetic local demo uses pseudonymous IDs, not authentication. Completion
 of one queue is not a study-wide freeze or a security boundary. Real participant
 collection still requires the access and role controls in CURRENT_STATUS.md.
+
+### Safe intent output files
+
+`export-intent`, `intent-coding-sheet` and `intent-report` require a new
+output filename. They refuse existing files, directories and symlinks rather
+than overwriting a database, media, sealed record, commitment, frozen export
+or prior report. Use a different filename when rebuilding the same output;
+identical input and parameters still produce identical bytes. The destination
+is reserved exclusively before database changes, with owner-only permissions
+on systems that support them. A failed operation removes its newly reserved
+file; failed sheet writes roll back the sheet transaction. Original records
+and commitments are never rewritten to satisfy a validator.

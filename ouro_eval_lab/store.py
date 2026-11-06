@@ -52,6 +52,63 @@ CREATE TABLE IF NOT EXISTS intent_freezes (
   freeze_id TEXT PRIMARY KEY, export_sha256 TEXT NOT NULL, export_format TEXT NOT NULL,
   response_count INTEGER NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS intent_reveals (
+  reveal_id TEXT PRIMARY KEY, freeze_id TEXT NOT NULL, freeze_sha256 TEXT NOT NULL,
+  commitments_sha256 TEXT NOT NULL, record_count INTEGER NOT NULL, revealed_at TEXT NOT NULL,
+  FOREIGN KEY(freeze_id) REFERENCES intent_freezes(freeze_id)
+);
+CREATE TABLE IF NOT EXISTS intent_records (
+  record_sha256 TEXT PRIMARY KEY, reveal_id TEXT NOT NULL, artifact_sha256 TEXT UNIQUE NOT NULL,
+  artifact_id TEXT NOT NULL, relative_path TEXT NOT NULL, record_json TEXT NOT NULL,
+  intent_contract_version TEXT NOT NULL,
+  FOREIGN KEY(reveal_id) REFERENCES intent_reveals(reveal_id),
+  FOREIGN KEY(artifact_sha256) REFERENCES artifacts(sha256)
+);
+CREATE TABLE IF NOT EXISTS intent_coding_sheets (
+  sheet_id TEXT PRIMARY KEY, coder_id TEXT UNIQUE NOT NULL, reveal_id TEXT NOT NULL,
+  seed INTEGER NOT NULL, item_count INTEGER NOT NULL, sheet_sha256 TEXT NOT NULL,
+  codebook_version TEXT NOT NULL, coding_contract_version TEXT NOT NULL, created_at TEXT NOT NULL,
+  FOREIGN KEY(reveal_id) REFERENCES intent_reveals(reveal_id)
+);
+CREATE TABLE IF NOT EXISTS intent_code_imports (
+  import_id TEXT PRIMARY KEY, sheet_id TEXT NOT NULL, coder_id TEXT NOT NULL,
+  import_sha256 TEXT NOT NULL, coded_count INTEGER NOT NULL, unchanged_count INTEGER NOT NULL,
+  imported_at TEXT NOT NULL,
+  FOREIGN KEY(sheet_id) REFERENCES intent_coding_sheets(sheet_id)
+);
+CREATE TABLE IF NOT EXISTS intent_codings (
+  coding_id TEXT PRIMARY KEY, item_id TEXT UNIQUE NOT NULL, import_id TEXT NOT NULL,
+  sheet_id TEXT NOT NULL, coder_id TEXT NOT NULL, response_id TEXT NOT NULL,
+  response_sha256 TEXT NOT NULL, record_sha256 TEXT NOT NULL, artifact_sha256 TEXT NOT NULL,
+  component TEXT NOT NULL, delivery TEXT NOT NULL, code TEXT NOT NULL,
+  confidence INTEGER NOT NULL, note TEXT NOT NULL, codebook_version TEXT NOT NULL,
+  coding_contract_version TEXT NOT NULL, coded_at TEXT NOT NULL,
+  UNIQUE(coder_id, response_id, component),
+  FOREIGN KEY(import_id) REFERENCES intent_code_imports(import_id),
+  FOREIGN KEY(sheet_id) REFERENCES intent_coding_sheets(sheet_id),
+  FOREIGN KEY(response_id) REFERENCES intent_responses(response_id),
+  FOREIGN KEY(record_sha256) REFERENCES intent_records(record_sha256)
+);
+CREATE TRIGGER IF NOT EXISTS intent_coding_sheets_no_update BEFORE UPDATE ON intent_coding_sheets
+BEGIN SELECT RAISE(ABORT, 'intent coding sheets are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_coding_sheets_no_delete BEFORE DELETE ON intent_coding_sheets
+BEGIN SELECT RAISE(ABORT, 'intent coding sheets are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_code_imports_no_update BEFORE UPDATE ON intent_code_imports
+BEGIN SELECT RAISE(ABORT, 'intent code imports are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_code_imports_no_delete BEFORE DELETE ON intent_code_imports
+BEGIN SELECT RAISE(ABORT, 'intent code imports are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_codings_no_update BEFORE UPDATE ON intent_codings
+BEGIN SELECT RAISE(ABORT, 'intent codes are append-only; disagreement goes to adjudication'); END;
+CREATE TRIGGER IF NOT EXISTS intent_codings_no_delete BEFORE DELETE ON intent_codings
+BEGIN SELECT RAISE(ABORT, 'intent codes are append-only; disagreement goes to adjudication'); END;
+CREATE TRIGGER IF NOT EXISTS intent_reveals_no_update BEFORE UPDATE ON intent_reveals
+BEGIN SELECT RAISE(ABORT, 'intent reveals are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_reveals_no_delete BEFORE DELETE ON intent_reveals
+BEGIN SELECT RAISE(ABORT, 'intent reveals are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_records_no_update BEFORE UPDATE ON intent_records
+BEGIN SELECT RAISE(ABORT, 'revealed intent records are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS intent_records_no_delete BEFORE DELETE ON intent_records
+BEGIN SELECT RAISE(ABORT, 'revealed intent records are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS intent_responses_no_update BEFORE UPDATE ON intent_responses
 BEGIN SELECT RAISE(ABORT, 'intent responses are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS intent_responses_no_delete BEFORE DELETE ON intent_responses
@@ -69,16 +126,6 @@ EVIDENCE_COLUMNS = (
     ("rubric_version", "TEXT"), ("defect_family_id", "INTEGER"), ("region", "TEXT"),
     ("reference_id", "TEXT"), ("evidence_description", "TEXT"),
 )
-
-STUDIES = ("annotation", "intent")
-
-
-class CollectionFrozen(Exception):
-    """Intent responses were already exported for reveal; collection is closed."""
-
-
-class PlayRefused(Exception):
-    """A play start the server will not record: limit reached, completed, or out of order."""
 
 
 class ManagedConnection(sqlite3.Connection):
@@ -117,6 +164,16 @@ class ManagedConnection(sqlite3.Connection):
             return super().__exit__(exc_type, exc_value, traceback)
         finally:
             self.close()
+
+STUDIES = ("annotation", "intent")
+
+
+class CollectionFrozen(Exception):
+    """Intent responses were already exported for reveal; collection is closed."""
+
+
+class PlayRefused(Exception):
+    """A play start the server will not record: limit reached, completed, or out of order."""
 
 
 def connect(path: Path | str) -> sqlite3.Connection:

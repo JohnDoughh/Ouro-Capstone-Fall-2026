@@ -11,6 +11,11 @@ from pathlib import Path
 EXPECTED_ARTIFACT_ID = "syn-tone-b"
 EXPECTED_SHA256 = "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478"
 EXPECTED_BYTES = 336044
+EXPECTED_ARTIFACT_VERSION = "v1"
+
+
+class MediaIdentityError(ValueError):
+    """The records do not identify the same pinned version of the media."""
 
 
 def load_object(path: Path) -> dict:
@@ -22,9 +27,17 @@ def load_object(path: Path) -> dict:
 
 def require_artifact(record: dict, label: str) -> None:
     if record.get("artifact_id") != EXPECTED_ARTIFACT_ID:
-        raise ValueError(f"{label} has the wrong artifact_id")
+        raise MediaIdentityError(f"{label} has the wrong artifact_id")
     if record.get("artifact_sha256") != EXPECTED_SHA256:
-        raise ValueError(f"{label} has the wrong artifact_sha256")
+        raise MediaIdentityError(f"{label} has the wrong artifact_sha256")
+    if record.get("artifact_version") != EXPECTED_ARTIFACT_VERSION:
+        raise MediaIdentityError(f"{label} must declare artifact_version {EXPECTED_ARTIFACT_VERSION}")
+
+
+def validate_media_pair(annotation: dict, evaluation: dict) -> None:
+    for field in ("artifact_sha256", "artifact_version"):
+        if annotation.get(field) != evaluation.get(field):
+            raise MediaIdentityError(f"human annotation and evaluator output have mismatched {field}")
 
 
 def validate_human(annotation: dict) -> None:
@@ -67,12 +80,14 @@ def build(package_root: Path, artifact: Path, output_dir: Path) -> None:
 
     annotation = load_object(package_root / "fictional_annotation.json")
     evaluator = load_object(package_root / "simulated_evaluator_output.json")
+    validate_media_pair(annotation, evaluator)
     validate_human(annotation)
     validate_simulated(evaluator)
 
     comparison = {
         "artifact_id": EXPECTED_ARTIFACT_ID,
         "artifact_sha256": EXPECTED_SHA256,
+        "artifact_version": EXPECTED_ARTIFACT_VERSION,
         "comparison_version": "1.0.0",
         "human_annotation_id": annotation["annotation_id"],
         "human_verdict": annotation["verdict"],
@@ -87,6 +102,7 @@ def build(package_root: Path, artifact: Path, output_dir: Path) -> None:
         "artifact": {
             "artifact_id": EXPECTED_ARTIFACT_ID,
             "artifact_sha256": EXPECTED_SHA256,
+            "artifact_version": EXPECTED_ARTIFACT_VERSION,
             "byte_length": EXPECTED_BYTES,
             "relative_path": "../public_audio/dropout.wav"
         },
@@ -112,7 +128,10 @@ def main() -> int:
     parser.add_argument("--artifact", type=Path, default=Path("data/public_audio/dropout.wav"))
     parser.add_argument("--out", type=Path, default=Path("data/card465_dropout_evidence/exports"))
     args = parser.parse_args()
-    build(args.package_root, args.artifact, args.out)
+    try:
+        build(args.package_root, args.artifact, args.out)
+    except ValueError as error:
+        parser.error(str(error))
     print(f"wrote reproducible card #465 evidence to {args.out}")
     return 0
 

@@ -18,8 +18,15 @@ from .intent_metrics import (
     DEFAULT_SAMPLES as INTENT_SAMPLES, DEFAULT_SEED as INTENT_SEED, build_intent_report,
     render_intent_report,
 )
+from .intent_html import render_intent_html
+from .intent_pilot import PILOT_SAMPLES, run_pilot
 from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
 from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
+
+
+def _write_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
 
 
 def _write(path: Path, content: str) -> None:
@@ -118,6 +125,19 @@ def main(argv: list[str] | None = None) -> int:
     intent_report.add_argument("--samples", type=int, default=INTENT_SAMPLES, help="bootstrap resamples")
     intent_report.add_argument(
         "--code-commit", default=None, help="commit to record; defaults to git HEAD when available",
+    )
+    intent_report.add_argument("--html", type=Path, help="also write the offline HTML view here")
+    pilot = sub.add_parser(
+        "intent-pilot", help="run the seeded synthetic intent study end to end; byte-stable report",
+    )
+    pilot.add_argument("--out", type=Path, required=True, help="report JSON")
+    pilot.add_argument("--html", type=Path, help="also write the offline HTML view here")
+    pilot.add_argument("--seed", type=int, default=INTENT_SEED)
+    pilot.add_argument("--samples", type=int, default=PILOT_SAMPLES, help="bootstrap resamples")
+    pilot.add_argument("--workdir", type=Path, help="empty directory to keep the pilot's files and database")
+    pilot.add_argument(
+        "--expect", type=Path,
+        help="file whose first token is the expected report SHA-256; exit 1 on mismatch",
     )
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
@@ -251,10 +271,34 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
         body = render_intent_report(report)
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_bytes(body)
+        _write_bytes(args.out, body)
         print(f"wrote {args.out} (synthetic demo; not a research finding)")
         print(f"sha256 {hashlib.sha256(body).hexdigest()}")
+        if args.html:
+            _write_bytes(args.html, render_intent_html(report))
+            print(f"wrote {args.html}")
+    elif args.command == "intent-pilot":
+        if args.samples < 1:
+            parser.error("--samples must be at least 1")
+        try:
+            body = run_pilot(args.seed, args.samples, args.workdir)
+        except ValueError as exc:
+            parser.error(str(exc))
+        digest = hashlib.sha256(body).hexdigest()
+        _write_bytes(args.out, body)
+        print(f"wrote {args.out} (synthetic pilot; not a research finding)")
+        print(f"sha256 {digest}")
+        if args.html:
+            _write_bytes(args.html, render_intent_html(json.loads(body)))
+            print(f"wrote {args.html}")
+        if args.expect:
+            tokens = args.expect.read_text().split() if args.expect.is_file() else []
+            expected = tokens[0] if tokens else "(missing)"
+            if expected != digest:
+                print(f"pilot report SHA-256 {digest} does not match {expected} in {args.expect}")
+                print("if the change is intended, record the new hash in that file in the same commit")
+                return 1
+            print(f"matches {args.expect}")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")

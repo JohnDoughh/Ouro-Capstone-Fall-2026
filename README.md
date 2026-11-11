@@ -96,7 +96,8 @@ python -m ouro_eval_lab.cli export-intent --db data/intent-demo.db --out data/ex
 python -m ouro_eval_lab.cli reveal --db data/intent-demo.db --records path/to/revealed/records
 python -m ouro_eval_lab.cli intent-coding-sheet --db data/intent-demo.db --coder coder_1 --out data/exports/coding/coder_1.csv
 python -m ouro_eval_lab.cli intent-import-codes --db data/intent-demo.db --coder coder_1 --codes data/exports/coding/coder_1.csv
-python -m ouro_eval_lab.cli intent-report --db data/intent-demo.db --out data/exports/intent-report.json
+python -m ouro_eval_lab.cli intent-report --db data/intent-demo.db --out data/exports/intent-report.json --html data/exports/intent-report.html
+python -m ouro_eval_lab.cli intent-pilot --out data/exports/intent-pilot.json --html data/exports/intent-pilot.html --expect team_c/intent_pilot/EXPECTED_SHA256
 ```
 
 ## Non-negotiable boundaries

@@ -11,6 +11,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 |---|---|
 | `team-c/sprint1-walking-skeleton` | Pushed. Sprint 1 docs. No PR (team approved). |
 | `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). 2026-11-04: `main` had moved ~40 commits and conflicted in 11 files; merged `main` in and resolved (`70df507`). Awaiting re-review. |
+| `team-c/sprint5-failure-views` | Pushed 2026-11-11. Branched from Sprint 3: `intent-pilot`, `intent-report --html`, rerun and threat-model sections. No PR yet (would stack on #39). |
 | `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal, codebook draft, this tracker, coder sheets, code import, Sprint 4 metrics and `intent-report`, both proposals. `main` merged in via Sprint 2 (`dbacf07`). **PR #39** into `main` (opened 2026-11-04; builds on #23, so merge #23 first). Head `a421266` or later. |
 
 **Session of 2026-11-04 in one paragraph.** Built coder sheets and code import, then the Sprint 4 metrics, shared Krippendorff's alpha and `intent-report`. `main` had moved ~40 commits and PR #23 conflicted in 11 files; merged `main` into Sprint 2 and then Sprint 3, and both PRs are mergeable again. Commented on PR #23 and opened PR #39. Wrote and sent the adjudication proposal to the Team A and B delegates; drafted the evaluator-output proposal for the council and a shared-alpha note for Teams A and B (both still to send). Sprint 5 is **on hold** until the team says to start.
@@ -46,7 +47,7 @@ Rule agreed: a card moves to complete only when its PR merges.
 | #587 Save the original viewer response and record its hash | in review | PR #23, PR #39 | `[x]` append-only responses, freeze SHA-256, per-response `response_sha256` bound into every code (computed from the stored row) |
 | #588 Have a different person grade what the viewer understood | in progress | PR #39 | `[~]` coder sheets + import done; adjudication waits on the delegates |
 | #589 Check that the video, response, and evaluator IDs match | in progress | PR #39 | `[~]` clip/response/record bound by SHA-256; evaluator part waits on the council |
-| #590 Create a repeatable comparison scoreboard and label simulated results | in progress | PR #39 | `[~]` `intent-report` is repeatable and labelled synthetic; evaluator comparison and Sprint 5 pilot still to do |
+| #590 Create a repeatable comparison scoreboard and label simulated results | in progress | PR #39 (+ Sprint 5 PR) | `[~]` `intent-report` is repeatable and labelled synthetic; seeded pilot and HTML view built on the Sprint 5 branch; evaluator comparison still to do |
 
 **Next steps, in order**
 
@@ -57,7 +58,7 @@ Rule agreed: a card moves to complete only when its PR merges.
 5. **Claude, when Team A replies and the council agrees v2:** build the intent evaluator-output contract and comparison (Sprint 4 item below).
 6. **Team:** calibrate the codebook on the practice anchors and freeze it with the pre-registration; run the coder sheets by hand with two people on the dry-run database.
 7. **Team:** send the sponsor questions (vocabulary mapping, custodian); name the open roles (leader, integration delegate, human-subjects owner, reveal custodian).
-8. **On hold until the team says go:** Sprint 5.
+8. **Sprint 5 started 2026-11-11** (team said go). Done: pilot, HTML view, rerun and threat-model docs. Left: **team** gets a non-builder to run the intent rerun section; drift anchors after the codebook is frozen; final report last. **You:** say whether to open the Sprint 5 PR now (stacked on #39) or after #23 and #39 merge.
 
 **Draft to send: shared-alpha note for Teams A and B**
 
@@ -166,13 +167,13 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 ## Sprint 5: Failure views, anchors, rerun, final report
 
-***On hold** (team decision, 2026-11-04). Do not start until the team says go.*
+*Started 2026-11-11 on `team-c/sprint5-failure-views`. Everything is synthetic until real data and the open approvals exist.*
 
-- [ ] `intent-report --html`: offline clip × component heatmap, delivery codes, disagreement highlights, PII-screened snippets
-- [ ] `data/public_intent/anchors.json` drift anchors bound by SHA-256
-- [ ] `make intent-pilot`: seeded synthetic end-to-end run with byte-stable report hash, in `make check` and CI
-- [ ] Intent section in `docs/INDEPENDENT_RERUN.md`; a non-builder reruns it
-- [~] Docs: `CURRENT_STATUS.md` *(updated through Sprint 4 metrics)*, `README.md` commands *(updated through `intent-report`)*, `docs/THREAT_MODEL.md` *(not yet)*, final report *(not yet)*
+- [x] `intent-report --html`: offline clip × component heatmap, delivery codes, disagreement highlights *(`ouro_eval_lab/intent_html.py`; no scripts, renders only the report and binds it by SHA-256; failure tables for not-survived, pending-adjudication and ambiguous cells; light and dark. **Snippets left out:** the report has no free text by design; adding viewer text would need a separate, screened export and a team decision)*
+- [ ] `data/public_intent/anchors.json` drift anchors bound by SHA-256 *(waits for the codebook to be calibrated and frozen, so the anchors are not re-hashed)*
+- [x] `make intent-pilot`: seeded synthetic end-to-end run with byte-stable report hash, in `make check` and CI *(`ouro_eval_lab/intent_pilot.py`, CLI `intent-pilot`; 6 fictional clips, 5 simulated viewers, 2 simulated coders, all delivery codes; pins random IDs and the clock for the run only; hash in `team_c/intent_pilot/EXPECTED_SHA256`, same on separate runs; `tests/test_intent_pilot.py`)*
+- [~] Intent section in `docs/INDEPENDENT_RERUN.md`; a non-builder reruns it *(section written 2026-11-11; the rerun by a non-builder is still to do)*
+- [~] Docs: `CURRENT_STATUS.md` *(updated through Sprint 4 metrics)*, `README.md` commands *(updated through `intent-pilot`)*, `docs/THREAT_MODEL.md` *(intent section added 2026-11-11)*, final report *(not yet)*
 
 ---
 

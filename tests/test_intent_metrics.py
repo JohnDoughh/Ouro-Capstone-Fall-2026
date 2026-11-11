@@ -237,6 +237,16 @@ class IntentReportTests(unittest.TestCase):
             outputs.append(out.read_bytes())
         self.assertEqual(outputs[0], outputs[1])
 
+    def test_cli_html_view_is_written_from_the_same_report(self):
+        out, html = self.root / "r.json", self.root / "r.html"
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli_main(["intent-report", "--db", str(self.study.db), "--out", str(out),
+                      "--samples", "50", "--code-commit", "1" * 40, "--html", str(html)])
+        page = html.read_text(encoding="utf-8")
+        self.assertIn(hashlib.sha256(out.read_bytes()).hexdigest(), page)
+        for secret in ("viewer_a", "coder_1", "Fictional answer", "vaguer than the record"):
+            self.assertNotIn(secret, page)
+
     def test_report_is_refused_without_codes(self):
         empty = CodingStudy(Path(self.enterContext(tempfile.TemporaryDirectory())))
         self.addCleanup(gc.collect)  # Windows: close stray handles before the directory goes.

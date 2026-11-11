@@ -1,4 +1,4 @@
-.PHONY: bootstrap run benchmark card465-evidence dropout-agreement-report test check clean
+.PHONY: bootstrap run benchmark card465-evidence dropout-agreement-report intent-pilot test check clean
 
 PYTHON ?= python3
 SEED ?= 20260825
@@ -18,6 +18,9 @@ card465-evidence:
 dropout-agreement-report:
 	$(PYTHON) scripts/build_dropout_agreement_report.py
 
+intent-pilot:
+	$(PYTHON) -m ouro_eval_lab.cli intent-pilot --out data/exports/intent-pilot.json --html data/exports/intent-pilot.html --expect team_c/intent_pilot/EXPECTED_SHA256
+
 test:
 	$(PYTHON) -m unittest discover -s tests -v
 
@@ -27,6 +30,7 @@ check: test
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_playable/manifest.json
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_audio/manifest.json
 	$(PYTHON) -m ouro_eval_lab.cli verify --manifest data/public_intent/manifest.json
+	$(MAKE) intent-pilot
 
 clean:
 	rm -f data/lab.db

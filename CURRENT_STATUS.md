@@ -115,7 +115,16 @@ Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
   contradiction and survival per clip and component, delivery strata,
   comprehension disruption, viewer calibration, the ambiguity list, and
   Krippendorff's alpha with a bootstrap interval (shared function in
-  `metrics.py`) (Sprint 4).
+  `metrics.py`) (Sprint 4);
+- `intent-report --html`, an offline HTML view of that report: a clip ×
+  component heatmap with survival, delivery codes, ambiguity and coder
+  disagreement, plus failure tables; no scripts, no free text, bound to the
+  report's SHA-256 (Sprint 5);
+- `intent-pilot` (and `make intent-pilot`, run by `make check`): a seeded
+  synthetic run of the whole intent study, from fictional records to the
+  report, with simulated viewers and coders. Its report hash is recorded in
+  `team_c/intent_pilot/EXPECTED_SHA256` and must match byte for byte
+  (Sprint 5).
 
 Still missing:
 
@@ -126,7 +135,10 @@ Still missing:
   proof and CTA are reported only as derived labels on their fields;
 - evaluator comparison, which needs an intent evaluator-output contract;
 - separation between observable recovery and perceived persuasion in reporting.
-  Stage 1 collects no persuasion items.
+  Stage 1 collects no persuasion items;
+- intent drift anchors (wait for the codebook to be calibrated and frozen);
+- free-text snippets in the HTML view (left out: the view shows only the
+  report, which carries no viewer text).
 
 ### Failure analysis and drift
 

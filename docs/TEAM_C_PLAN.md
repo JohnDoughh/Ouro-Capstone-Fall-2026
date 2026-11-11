@@ -1,6 +1,6 @@
 # Team C implementation plan: status tracker
 
-Team C: Intent Fidelity and Human Perception. Last updated **2026-11-04**.
+Team C: Intent Fidelity and Human Perception. Last updated **2026-11-11**.
 
 Legend: `[x]` done · `[~]` partly done or waiting on someone · `[ ]` not started.
 Notes in *italics* say where the work lives or where it differs from the plan.
@@ -14,6 +14,8 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 | `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal, codebook draft, this tracker, coder sheets, code import, Sprint 4 metrics and `intent-report`, both proposals. `main` merged in via Sprint 2 (`dbacf07`). **PR #39** into `main` (opened 2026-11-04; builds on #23, so merge #23 first). Head `a421266` or later. |
 
 **Session of 2026-11-04 in one paragraph.** Built coder sheets and code import, then the Sprint 4 metrics, shared Krippendorff's alpha and `intent-report`. `main` had moved ~40 commits and PR #23 conflicted in 11 files; merged `main` into Sprint 2 and then Sprint 3, and both PRs are mergeable again. Commented on PR #23 and opened PR #39. Wrote and sent the adjudication proposal to the Team A and B delegates; drafted the evaluator-output proposal for the council and a shared-alpha note for Teams A and B (both still to send). Sprint 5 is **on hold** until the team says to start.
+
+**Check of 2026-11-11.** No new reviews or comments on PR #23 or #39 since 2026-11-04; both `MERGEABLE`; `main` unchanged (`3bc94bb`). New open PR #40 (Team A/B dropout evidence) touches no Team C files. No reply seen on GitHub from the delegates or the council.
 
 **Waiting on others**
 
@@ -50,7 +52,7 @@ Rule agreed: a card moves to complete only when its PR merges.
 
 1. **You (team):** send the evaluator-output proposal to the council and the shared-alpha note (below) to the Team A and B delegates.
 2. **You (team):** move and link the portal cards as in the table above.
-3. **Claude, next session:** check PR #23 and #39 for review comments and that both are still `MERGEABLE` (`main` moves fast); if not, merge `main` into Sprint 2, then Sprint 2 into Sprint 3, and push.
+3. **Claude, each session:** check PR #23 and #39 for review comments and that both are still `MERGEABLE` (`main` moves fast); if not, merge `main` into Sprint 2, then Sprint 2 into Sprint 3, and push.
 4. **Claude, when the delegates reply:** build adjudication (Sprint 3 item below).
 5. **Claude, when the council replies:** build the intent evaluator-output contract and comparison (Sprint 4 item below).
 6. **Team:** calibrate the codebook on the practice anchors and freeze it with the pre-registration; run the coder sheets by hand with two people on the dry-run database.

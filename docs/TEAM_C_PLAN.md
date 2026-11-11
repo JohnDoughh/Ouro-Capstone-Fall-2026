@@ -10,10 +10,13 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 | Branch | State |
 |---|---|
 | `team-c/sprint1-walking-skeleton` | Pushed. Sprint 1 docs. No PR (team approved). |
-| `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-19 (3 items); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). 2026-11-04: `main` had moved ~40 commits and conflicted in 11 files; merged `main` in and resolved (`70df507`). Awaiting re-review. |
+| `team-c/sprint2-intent-capture` | Pushed. **PR #23** into `JohnDoughh/Ouro-Capstone-Fall-2026` `main`. Owner requested changes on 2026-10-15 (3 items; answered 2026-10-19); all three fixed and pushed (`eecb8b3`, `ada5158`, `1c90147`). 2026-11-04: `main` had moved ~40 commits and conflicted in 11 files; merged `main` in and resolved (`70df507`). Awaiting re-review: GitHub keeps it `BLOCKED` until the owner approves or dismisses the 2026-10-15 review. |
 | `team-c/sprint3-reveal-coding` | Pushed. Branched from Sprint 2: reveal, codebook draft, this tracker, coder sheets, code import, Sprint 4 metrics and `intent-report`, both proposals. `main` merged in via Sprint 2 (`dbacf07`). **PR #39** into `main` (opened 2026-11-04; builds on #23, so merge #23 first). Head `a421266` or later. |
+| `team-c/sprint5-failure-views` | Pushed 2026-11-11. Branched from Sprint 3: `intent-pilot`, `intent-report --html`, rerun and threat-model sections. Head `677fc69` or later. No PR yet: stacked on #39 its diff would include #23 and #39, so the recommendation is to open it off `main` once those merge (your call). |
 
 **Session of 2026-11-04 in one paragraph.** Built coder sheets and code import, then the Sprint 4 metrics, shared Krippendorff's alpha and `intent-report`. `main` had moved ~40 commits and PR #23 conflicted in 11 files; merged `main` into Sprint 2 and then Sprint 3, and both PRs are mergeable again. Commented on PR #23 and opened PR #39. Wrote and sent the adjudication proposal to the Team A and B delegates; drafted the evaluator-output proposal for the council and a shared-alpha note for Teams A and B (both still to send). Sprint 5 is **on hold** until the team says to start.
+
+**Session of 2026-11-11 in one paragraph.** Checked both PRs (no new reviews, both mergeable, `main` unchanged). Team B's delegate replied to the evaluator-output proposal (feedback, not approval); folded it into v2 (`c6295e0`) and documented one-judgment-per-rater, `UNSURE` and bootstrap grouping in the shared alpha functions. Found what blocks merging: Team C has read-only access upstream, and PR #23 stays blocked until JohnDoughh re-reviews; a message to him is drafted below for you to send. Team said go on Sprint 5: built the seeded synthetic pilot (`intent-pilot`, in `make check`), the offline HTML view (`intent-report --html`), and the intent sections of the rerun guide and threat model, on `team-c/sprint5-failure-views` (`677fc69`). 169 Python and 52 browser tests pass.
 
 **Check of 2026-11-11.** No new reviews or comments on PR #23 or #39 since 2026-11-04; both `MERGEABLE`; `main` unchanged (`3bc94bb`). New open PR #40 (Team A/B dropout evidence) touches no Team C files. No reply seen on GitHub from the delegates or the council.
 
@@ -21,7 +24,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 
 | What | Who | Then |
 |---|---|---|
-| Re-review and merge PR #23, then PR #39 | Repo owner | Answer any review comments; keep both mergeable |
+| Re-review and merge PR #23, then PR #39 | Repo owner (JohnDoughh; only he can merge, Team C is read-only) | Message him directly (draft below); answer any review comments; keep both mergeable |
 | Adjudication shape (`docs/ADJUDICATION_PROPOSAL.md`, sent 2026-11-04) | Team A and B delegates | Build `intent_adjudications` + `adjudicate-intent` and the shared reference-label helper; then `intent-report` can decide survival where coders disagreed |
 | Evaluator-output format (`docs/INTENT_EVALUATOR_OUTPUT_PROPOSAL.md`, v2 2026-11-11) | Team A delegate (Team B replied 2026-11-11, folded into v2); Jonathan to name the independent custodian | Build the contract, validator and the false survived / false not-survived, Brier, ECE and risk-coverage section of `intent-report` (synthetic outputs only) |
 | Record value types | Owner/custodian runs `scripts/verify_intent_reveal.py` on the sealed records | Adjust the 2.0.0 validator if any inferred type is wrong |
@@ -46,18 +49,22 @@ Rule agreed: a card moves to complete only when its PR merges.
 | #587 Save the original viewer response and record its hash | in review | PR #23, PR #39 | `[x]` append-only responses, freeze SHA-256, per-response `response_sha256` bound into every code (computed from the stored row) |
 | #588 Have a different person grade what the viewer understood | in progress | PR #39 | `[~]` coder sheets + import done; adjudication waits on the delegates |
 | #589 Check that the video, response, and evaluator IDs match | in progress | PR #39 | `[~]` clip/response/record bound by SHA-256; evaluator part waits on the council |
-| #590 Create a repeatable comparison scoreboard and label simulated results | in progress | PR #39 | `[~]` `intent-report` is repeatable and labelled synthetic; evaluator comparison and Sprint 5 pilot still to do |
+| #590 Create a repeatable comparison scoreboard and label simulated results | in progress | PR #39 (+ Sprint 5 PR) | `[~]` `intent-report` is repeatable and labelled synthetic; seeded pilot and HTML view built on the Sprint 5 branch; evaluator comparison still to do |
 
 **Next steps, in order**
 
-1. **You (team):** send v2 of the evaluator-output proposal to the council (reply to Team B, chase Team A, ask Jonathan for a custodian) and the shared-alpha note (below) to the Team A and B delegates.
+1. **You (team):** message Jonathan to re-review and merge PR #23 then #39 and to name the evaluator-output custodian. Send v2 of the evaluator-output proposal to the council (reply to Team B, chase Team A, ask Jonathan for a custodian) and the shared-alpha note (below) to the Team A and B delegates.
 2. **You (team):** move and link the portal cards as in the table above.
 3. **Claude, each session:** check PR #23 and #39 for review comments and that both are still `MERGEABLE` (`main` moves fast); if not, merge `main` into Sprint 2, then Sprint 2 into Sprint 3, and push.
 4. **Claude, when the delegates reply:** build adjudication (Sprint 3 item below).
 5. **Claude, when Team A replies and the council agrees v2:** build the intent evaluator-output contract and comparison (Sprint 4 item below).
 6. **Team:** calibrate the codebook on the practice anchors and freeze it with the pre-registration; run the coder sheets by hand with two people on the dry-run database.
 7. **Team:** send the sponsor questions (vocabulary mapping, custodian); name the open roles (leader, integration delegate, human-subjects owner, reveal custodian).
-8. **On hold until the team says go:** Sprint 5.
+8. **Sprint 5 started 2026-11-11** (team said go). Done: pilot, HTML view, rerun and threat-model docs. Left: **team** gets a non-builder to run the intent rerun section; drift anchors after the codebook is frozen; final report last. **You:** say whether to open the Sprint 5 PR now (stacked on #39) or after #23 and #39 merge.
+
+**Draft to send: message to Jonathan (repo owner)**
+
+> Hi Jonathan — PR #23 (Team C intent capture) has had all three of your requested changes addressed since Oct 19 and is mergeable with current `main`; it's only blocked by the Oct 15 "changes requested" review. Could you re-review (or dismiss it if you're satisfied) and merge? PR #39 builds directly on it (reveal, coding, intent metrics) and is also mergeable. Locally on Windows, all Python tests, 52 browser tests, the boundary scan and the manifest checks pass. Separately, could you name an independent custodian for freezing evaluator outputs (from the evaluator-output proposal)?
 
 **Draft to send: shared-alpha note for Teams A and B**
 
@@ -66,6 +73,7 @@ Rule agreed: a card moves to complete only when its PR merges.
 **Known issues**
 
 - ~~8 existing tests fail on Windows only (`WinError 32`).~~ Fixed upstream by PR #32 (connections close on every platform); gone since `main` was merged in on 2026-11-04.
+- Pilot hash: any change that alters intent report output (adjudication, evaluator comparison, metric fixes) changes the pilot report. Regenerate `team_c/intent_pilot/EXPECTED_SHA256` in the same commit and say why, or `make check` fails.
 - `main` moves fast (other teams merge often). Check `mergeable` on both PRs at the start of each session. No `upstream` remote is configured: `git fetch https://github.com/JohnDoughh/Ouro-Capstone-Fall-2026.git main:refs/remotes/upstream-main`.
 - PR #23's hosted CI cannot run: the owner approved it, but an owner-account billing lock stops GitHub Actions. The owner ran the checks locally (Python 3.13).
 - `make` and `gh` on this machine: no `make`, so run the `make check` steps one by one. `gh` is at `C:\Program Files\GitHub CLI\gh.exe` (not on PATH until a restart).
@@ -166,13 +174,13 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 ## Sprint 5: Failure views, anchors, rerun, final report
 
-***On hold** (team decision, 2026-11-04). Do not start until the team says go.*
+*Started 2026-11-11 on `team-c/sprint5-failure-views`. Everything is synthetic until real data and the open approvals exist.*
 
-- [ ] `intent-report --html`: offline clip × component heatmap, delivery codes, disagreement highlights, PII-screened snippets
-- [ ] `data/public_intent/anchors.json` drift anchors bound by SHA-256
-- [ ] `make intent-pilot`: seeded synthetic end-to-end run with byte-stable report hash, in `make check` and CI
-- [ ] Intent section in `docs/INDEPENDENT_RERUN.md`; a non-builder reruns it
-- [~] Docs: `CURRENT_STATUS.md` *(updated through Sprint 4 metrics)*, `README.md` commands *(updated through `intent-report`)*, `docs/THREAT_MODEL.md` *(not yet)*, final report *(not yet)*
+- [x] `intent-report --html`: offline clip × component heatmap, delivery codes, disagreement highlights *(`ouro_eval_lab/intent_html.py`; no scripts, renders only the report and binds it by SHA-256; failure tables for not-survived, pending-adjudication and ambiguous cells; light and dark. **Snippets left out:** the report has no free text by design; adding viewer text would need a separate, screened export and a team decision)*
+- [ ] `data/public_intent/anchors.json` drift anchors bound by SHA-256 *(waits for the codebook to be calibrated and frozen, so the anchors are not re-hashed)*
+- [x] `make intent-pilot`: seeded synthetic end-to-end run with byte-stable report hash, in `make check` and CI *(`ouro_eval_lab/intent_pilot.py`, CLI `intent-pilot`; 6 fictional clips, 5 simulated viewers, 2 simulated coders, all delivery codes; pins random IDs and the clock for the run only; hash in `team_c/intent_pilot/EXPECTED_SHA256`, same on separate runs; `tests/test_intent_pilot.py`)*
+- [~] Intent section in `docs/INDEPENDENT_RERUN.md`; a non-builder reruns it *(section written 2026-11-11; the rerun by a non-builder is still to do)*
+- [~] Docs: `CURRENT_STATUS.md` *(updated through Sprint 4 metrics)*, `README.md` commands *(updated through `intent-pilot`)*, `docs/THREAT_MODEL.md` *(intent section added 2026-11-11)*, final report *(not yet)*
 
 ---
 
@@ -190,13 +198,14 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 
 ## Verification (per PR and at the end)
 
-- [x] `make check` *(run step by step on Windows; all 155 Python tests pass after the 2026-11-04 merge of `main`)*
-- [x] `node --test tests/web_lab_state.test.cjs` *(52 pass after merging `main`)*
+- [x] `make check` *(run step by step on Windows; 155 Python tests on Sprint 3, 169 on Sprint 5 (2026-11-11), all pass; `make check` now includes `make intent-pilot`)*
+- [x] `node --test tests/web_lab_state.test.cjs` *(52 pass; rechecked on Sprint 5, 2026-11-11)*
 - [~] Manual end-to-end check:
   - [x] serve in intent mode on a separate database; answer all 4 clips; replay and timeout retry
   - [x] `export-intent` and record the hash
   - [x] reveal fails before the freeze and with tampered records *(with stand-in records; real records still sealed)*
   - [~] coding sheets and import for two coders *(automated tests cover two coders; a manual run on the dry-run database is still to do)*
-  - [~] `intent-report`, byte-identical on rerun *(automated test checks it; a manual run on the dry-run database is still to do)*
+  - [~] `intent-report`, byte-identical on rerun *(automated test checks it; the synthetic pilot repeats byte for byte across separate runs and matches its recorded hash; a manual run on the dry-run database is still to do)*
+  - [x] HTML view checked by eye in light and dark mode (headless Chrome screenshots, 2026-11-11)
   - [x] no artifact ID, SHA or intent text reaches the viewer API
 - [~] Each PR: feature branch, Team C checkbox, docs and contracts together *(done for PR #23 and PR #39; shared-contract PRs need all three delegates)*

@@ -126,6 +126,13 @@ def krippendorff_alpha(
     nominal one; values not in ``order`` are dropped. Returns None when alpha
     is undefined (no pairable values, or only one value ever used). Shared by
     all teams: annotation verdicts, intent recovery codes, anything nominal.
+
+    Each unit must hold at most one judgment per rater: this is
+    inter-rater agreement. A rater's repeat judgments of the same unit
+    (intra-rater, test-retest) must not be added as extra values; compute
+    them separately. Abstentions such as ``UNSURE`` are values like any other
+    unless the caller maps them to ``None``; callers must state which they
+    chose (excluding ``UNSURE`` as missing is the usual choice).
     """
     rank = {value: index for index, value in enumerate(order)} if order is not None else None
     coincidence: dict[tuple[object, object], float] = defaultdict(float)
@@ -170,6 +177,11 @@ def bootstrap_alpha_interval(
     Each cluster is a list of units resampled together (for example all the
     components of one response). With ``strata`` (one key per cluster),
     clusters are resampled within their stratum (for example within clip).
+    Resample at the level that is independent: if units share a viewer,
+    response or clip, put them in one cluster. Missing values travel with their
+    unit. Bootstrap samples where alpha is undefined are dropped; returns
+    ``[None, None]`` if every sample is undefined or there are fewer than two
+    clusters.
     """
     if len(clusters) < 2:
         return [None, None]

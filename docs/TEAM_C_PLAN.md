@@ -23,7 +23,7 @@ Notes in *italics* say where the work lives or where it differs from the plan.
 |---|---|---|
 | Re-review and merge PR #23, then PR #39 | Repo owner | Answer any review comments; keep both mergeable |
 | Adjudication shape (`docs/ADJUDICATION_PROPOSAL.md`, sent 2026-11-04) | Team A and B delegates | Build `intent_adjudications` + `adjudicate-intent` and the shared reference-label helper; then `intent-report` can decide survival where coders disagreed |
-| Evaluator-output format (`docs/INTENT_EVALUATOR_OUTPUT_PROPOSAL.md`, drafted) | Council (send it first) | Build the contract, validator and the false survived / false not-survived, Brier, ECE and risk-coverage section of `intent-report` (synthetic outputs only) |
+| Evaluator-output format (`docs/INTENT_EVALUATOR_OUTPUT_PROPOSAL.md`, v2 2026-11-11) | Team A delegate (Team B replied 2026-11-11, folded into v2); Jonathan to name the independent custodian | Build the contract, validator and the false survived / false not-survived, Brier, ECE and risk-coverage section of `intent-report` (synthetic outputs only) |
 | Record value types | Owner/custodian runs `scripts/verify_intent_reveal.py` on the sealed records | Adjust the 2.0.0 validator if any inferred type is wrong |
 | Persuasion | FIU | Only then add a separate persuasion section |
 
@@ -50,18 +50,18 @@ Rule agreed: a card moves to complete only when its PR merges.
 
 **Next steps, in order**
 
-1. **You (team):** send the evaluator-output proposal to the council and the shared-alpha note (below) to the Team A and B delegates.
+1. **You (team):** send v2 of the evaluator-output proposal to the council (reply to Team B, chase Team A, ask Jonathan for a custodian) and the shared-alpha note (below) to the Team A and B delegates.
 2. **You (team):** move and link the portal cards as in the table above.
 3. **Claude, each session:** check PR #23 and #39 for review comments and that both are still `MERGEABLE` (`main` moves fast); if not, merge `main` into Sprint 2, then Sprint 2 into Sprint 3, and push.
 4. **Claude, when the delegates reply:** build adjudication (Sprint 3 item below).
-5. **Claude, when the council replies:** build the intent evaluator-output contract and comparison (Sprint 4 item below).
+5. **Claude, when Team A replies and the council agrees v2:** build the intent evaluator-output contract and comparison (Sprint 4 item below).
 6. **Team:** calibrate the codebook on the practice anchors and freeze it with the pre-registration; run the coder sheets by hand with two people on the dry-run database.
 7. **Team:** send the sponsor questions (vocabulary mapping, custodian); name the open roles (leader, integration delegate, human-subjects owner, reveal custodian).
 8. **On hold until the team says go:** Sprint 5.
 
 **Draft to send: shared-alpha note for Teams A and B**
 
-> Team C added `krippendorff_alpha` and `bootstrap_alpha_interval` to the shared `ouro_eval_lab/metrics.py` (PR #39). They work with any labels, so you can use them for PASS/HOLD. Any number of raters; missing ratings are fine (`None`). Nominal by default; pass `order=[...]` for ordinal scales such as severity 0–3. The bootstrap resamples groups of items, optionally within strata such as clips; pass a seed. It matches Krippendorff's published example (0.743 nominal, 0.815 ordinal) and returns `None` when alpha is undefined. Example: `krippendorff_alpha([("PASS","PASS"), ("HOLD","PASS"), ("HOLD","HOLD"), ("PASS","PASS",None)])` gives 0.533.
+> Team C added `krippendorff_alpha` and `bootstrap_alpha_interval` to the shared `ouro_eval_lab/metrics.py` (PR #39). They work with any labels, so you can use them for PASS/HOLD. Any number of raters; missing ratings are fine (`None`). Nominal by default; pass `order=[...]` for ordinal scales such as severity 0–3. The bootstrap resamples groups of items, optionally within strata such as clips; pass a seed. It matches Krippendorff's published example (0.743 nominal, 0.815 ordinal) and returns `None` when alpha is undefined. One judgment per rater per unit: keep same-rater repeats out and compute them separately. `UNSURE` counts as a category unless you pass it as `None`; say which you chose. Put units that share a viewer or clip in one bootstrap cluster. Example: `krippendorff_alpha([("PASS","PASS"), ("HOLD","PASS"), ("HOLD","HOLD"), ("PASS","PASS",None)])` gives 0.533.
 
 **Known issues**
 
@@ -159,7 +159,7 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 - [~] Krippendorff's alpha (nominal and ordinal) with bootstrap CI, as a shared reusable function; tell Teams A and B *(`krippendorff_alpha` and `bootstrap_alpha_interval` in shared `metrics.py`, checked against Krippendorff's published example; note to Teams A and B drafted 2026-11-04, to send)*
 - [x] Viewer certainty vs coded recovery (human calibration, separate from evaluator calibration) *(mean certainty by reference code; confidently wrong = contradicted with certainty 4–5)*
 - [x] Ambiguity and abstention reference class *(viewers split or coders split, §8; listed by cell)*
-- [~] Propose the intent evaluator-output contract through the council *(draft `docs/INTENT_EVALUATOR_OUTPUT_PROPOSAL.md`, 2026-11-04; to send to the council)*; then false PASS/false HOLD, Brier, ECE and risk-vs-coverage (synthetic demo outputs only until the sponsor provides frozen outputs)
+- [~] Propose the intent evaluator-output contract through the council *(v1 2026-11-04; Team B replied 2026-11-11: per clip and field, separate format, all seven fields with tone separate, nullable probability with a reason, independent custodian. Folded into v2 the same day. Waiting on Team A; not approved)*; then false PASS/false HOLD, Brier, ECE and risk-vs-coverage (synthetic demo outputs only until the sponsor provides frozen outputs)
 - [ ] Recovery vs persuasion: separate table and report section, only if FIU approves
 - [x] `intent-report` CLI: deterministic JSON with `synthetic_demo`, disclaimer, seeds, and hashes of manifest, freeze, revealed records and codes *(clips are bound by their artifact SHA-256, which the reveal checked against the manifest, rather than by a manifest file hash; also records the code commit, contract and codebook versions, and import hashes; no timestamps, IDs or free text)*
 - [x] Tests: hand-computed alpha fixtures, edge cases, survival boundaries, report determinism *(`tests/test_intent_metrics.py`, 18 tests)*
@@ -182,7 +182,7 @@ The repo is a v0.1 public-safe scaffold (Python 3.11 stdlib, SQLite, vanilla-JS 
 |---|---|---|---|
 | FIU human-subjects determination | FIU / Team C HS owner | Team dry runs and synthetic responses only until recorded | Open; HS owner not named |
 | Sealed intent records and more sanitized manifests | Ouro sponsor | Build against the README schema; confirm before freezing | Sponsor email drafted, not sent |
-| Evaluator intent outputs (none exist) | Ouro + council | Propose the contract early; synthetic demo outputs meanwhile | Proposal drafted 2026-11-04 (`docs/INTENT_EVALUATOR_OUTPUT_PROPOSAL.md`); not yet sent |
+| Evaluator intent outputs (none exist) | Ouro + council | Propose the contract early; synthetic demo outputs meanwhile | v2 2026-11-11 after Team B's feedback; Team A pending |
 | Adjudication shape shared by all teams | Team A and B delegates | Proposal; Team C leaves the shared table alone meanwhile; survival reported only where coders agree | Sent 2026-11-04; awaiting reply |
 | Only 4 clips (target 90–150) | Team C + custodian | More fictional clips via `scripts/generate_public_intent_clips.py`; non-coder custodian seals commitments | Not started |
 | PII in free-recall text | Team C | Length caps, instructions, contact-detail rejection | **Done** at submit time (emails and phone numbers rejected in answers and rater IDs) |

@@ -4,8 +4,9 @@ import argparse
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 from .api import serve
@@ -20,8 +21,19 @@ from .intent_metrics import (
     DEFAULT_SAMPLES as INTENT_SAMPLES, DEFAULT_SEED as INTENT_SEED, build_intent_report,
     render_intent_report,
 )
+from .intent_anchors import (
+    DEFAULT_CODEBOOK, AnchorRefused, check_coder, load_anchor_set, render_anchor_sheet,
+)
+from .intent_html import render_intent_html
+from .intent_pilot import PILOT_SAMPLES, run_pilot
+from .intent_status import intent_status, render_status
 from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
 from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
+
+
+def _write_bytes(path: Path, content: bytes) -> None:
+    with _new_intent_output(path) as output:
+        _durable_write(output, content)
 
 
 def _write(path: Path, content: str) -> None:
@@ -151,6 +163,32 @@ def main(argv: list[str] | None = None) -> int:
     intent_report.add_argument(
         "--code-commit", default=None, help="commit to record; defaults to git HEAD when available",
     )
+    intent_report.add_argument("--html", type=Path, help="also write the offline HTML view here")
+    pilot = sub.add_parser(
+        "intent-pilot", help="run the seeded synthetic intent study end to end; byte-stable report",
+    )
+    pilot.add_argument("--out", type=Path, required=True, help="report JSON")
+    pilot.add_argument("--html", type=Path, help="also write the offline HTML view here")
+    pilot.add_argument("--seed", type=int, default=INTENT_SEED)
+    pilot.add_argument("--samples", type=int, default=PILOT_SAMPLES, help="bootstrap resamples")
+    pilot.add_argument("--workdir", type=Path, help="empty directory to keep the pilot's files and database")
+    pilot.add_argument(
+        "--expect", type=Path,
+        help="file whose first token is the expected report SHA-256; exit 1 on mismatch",
+    )
+    status_cmd = sub.add_parser(
+        "intent-status", help="read-only: show an intent study database's stage and the next command",
+    )
+    status_cmd.add_argument("--db", type=Path, required=True)
+    anchors_cmd = sub.add_parser(
+        "intent-anchors", help="verify drift anchors, write a blind anchor sheet, or check a coder against them",
+    )
+    anchors_cmd.add_argument("action", choices=["verify", "sheet", "check"])
+    anchors_cmd.add_argument("--anchors", type=Path, required=True, help="anchor set JSON")
+    anchors_cmd.add_argument("--pinned", type=Path, help="file whose first token is the anchor set's SHA-256")
+    anchors_cmd.add_argument("--codebook", type=Path, default=DEFAULT_CODEBOOK)
+    anchors_cmd.add_argument("--out", type=Path, help="sheet: where to write the blind anchor sheet (CSV)")
+    anchors_cmd.add_argument("--codes", type=Path, help="check: one coder's filled anchor sheet (CSV)")
     agreement = sub.add_parser("agreement", help="write an offline aggregate report from a local lab database")
     agreement.add_argument("--db", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
@@ -282,20 +320,88 @@ def main(argv: list[str] | None = None) -> int:
         if args.samples < 1:
             parser.error("--samples must be at least 1")
         try:
-            with _new_intent_output(args.out) as output:
+            with ExitStack() as stack:
+                output = stack.enter_context(_new_intent_output(args.out))
+                html = stack.enter_context(_new_intent_output(args.html)) if args.html else None
                 initialize(args.db)
                 with connect(args.db) as db:
                     report = build_intent_report(
                         db, args.seed, args.samples, args.code_commit or _code_commit(),
                     )
-                    body = render_intent_report(report)
-                    _durable_write(output, body)
+                body = render_intent_report(report)
+                _durable_write(output, body)
+                if html is not None:
+                    _durable_write(html, render_intent_html(report))
         except OSError as exc:
             parser.error(f"intent output requires a new writable path: {exc.strerror}")
         except ValueError as exc:
             parser.error(str(exc))
         print(f"wrote {args.out} (synthetic demo; not a research finding)")
         print(f"sha256 {hashlib.sha256(body).hexdigest()}")
+        if args.html:
+            print(f"wrote {args.html}")
+    elif args.command == "intent-pilot":
+        if args.samples < 1:
+            parser.error("--samples must be at least 1")
+        try:
+            body = run_pilot(args.seed, args.samples, args.workdir)
+            digest = hashlib.sha256(body).hexdigest()
+            if args.expect:
+                tokens = args.expect.read_text().split() if args.expect.is_file() else []
+                expected = tokens[0] if tokens else "(missing)"
+                if expected != digest:
+                    print(f"pilot report SHA-256 {digest} does not match {expected} in {args.expect}")
+                    return 1
+            with ExitStack() as stack:
+                output = stack.enter_context(_new_intent_output(args.out))
+                html = stack.enter_context(_new_intent_output(args.html)) if args.html else None
+                _durable_write(output, body)
+                if html is not None:
+                    _durable_write(html, render_intent_html(json.loads(body)))
+        except OSError as exc:
+            parser.error(f"intent output requires a new writable path: {exc.strerror}")
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(f"wrote {args.out} (synthetic pilot; not a research finding)")
+        print(f"sha256 {digest}")
+        if args.html:
+            print(f"wrote {args.html}")
+        if args.expect:
+            print(f"matches {args.expect}")
+    elif args.command == "intent-status":
+        if not args.db.is_file():
+            parser.error(f"no database at {args.db}; ingest the intent manifest to create one")
+        # Read-only: a status check must never create tables or take write locks.
+        db = sqlite3.connect(args.db.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            print(render_status(intent_status(db, args.db)), end="")
+        finally:
+            db.close()
+    elif args.command == "intent-anchors":
+        if args.action == "sheet" and not args.out:
+            parser.error("intent-anchors sheet needs --out")
+        if args.action == "check" and not args.codes:
+            parser.error("intent-anchors check needs --codes")
+        try:
+            loaded = load_anchor_set(args.anchors, args.codebook, args.pinned)
+            result = check_coder(loaded["document"], args.codes.read_bytes()) if args.action == "check" else None
+        except AnchorRefused as exc:
+            parser.error(str(exc))
+        document = loaded["document"]
+        print(f"anchor set {document['anchor_set_version']}: {len(document['anchors'])} anchors, "
+              f"codebook {document['codebook_version']}")
+        print(f"sha256 {loaded['sha256']}  codebook sha256 {loaded['codebook_sha256']}")
+        if args.action == "sheet":
+            try:
+                _write_bytes(args.out, render_anchor_sheet(document))
+            except OSError as exc:
+                parser.error(f"intent output requires a new writable path: {exc.strerror}")
+            print(f"wrote {args.out} (blind: no expected codes; practice data, never pooled with study codes)")
+        elif args.action == "check":
+            print(f"codes sha256 {result['codes_sha256']}")
+            print(f"{result['matching']} of {result['anchors']} anchors match the expected code")
+            for row in result["mismatches"]:
+                print(f"  {row['anchor_id']}: expected {row['expected']}, coded {row['given']}")
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")
@@ -312,8 +418,15 @@ def main(argv: list[str] | None = None) -> int:
         initialize(args.db)
         with connect(args.db) as db:
             conflict = study_conflict(db, args.study)
+            empty = db.execute("SELECT 1 FROM artifacts LIMIT 1").fetchone() is None
         if conflict:
             parser.error(conflict)
+        if empty and args.study == "intent":
+            # Otherwise every viewer is told "0 of 0" and nothing looks wrong.
+            parser.error(
+                f"no clips in {args.db}; first run: python -m ouro_eval_lab.cli ingest "
+                f"--db {args.db} --manifest data/public_intent/manifest.json"
+            )
         serve(args.db, args.host, args.port, args.study, args.play_limit)
     return 0
 

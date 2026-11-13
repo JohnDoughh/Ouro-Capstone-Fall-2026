@@ -1,7 +1,8 @@
 {
   "artifact": {
     "artifact_id": "syn-tone-b",
-    "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478"
+    "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+    "artifact_version": "v1"
   },
   "disclaimer": "Fictional annotation and simulated evaluator demonstration; not a human-subject result or evaluator performance claim.",
   "inputs": {
@@ -26,6 +27,6 @@
     "pair_count": 1,
     "uncertain_count": 0
   },
-  "report_version": "1.0.0",
+  "report_version": "1.1.0",
   "synthetic_demo": true
 }

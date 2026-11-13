@@ -339,6 +339,34 @@ holds no timestamps, viewer or coder IDs, response IDs, recall text or notes.
 `ouro_eval_lab/metrics.py` and accept any labels, so Teams A and B can use them
 for annotation verdicts.
 
+### Intent drift anchors (anchors contract `1.0.0`)
+
+An anchor set is one JSON object (`ouro_eval_lab/intent_anchors.py`) with
+exactly these keys: `schema` (`team-c-intent-anchors`), `contract_version`
+(`1.0.0`), `anchor_set_version`, `codebook_version`, `codebook_sha256`,
+`fictional` (must be `true`) and `anchors`. Each of the 1–200 anchors has
+exactly `anchor_id`, `component`, `delivery`, `intended_text`, `viewer_text`,
+`viewer_could_not_tell`, `expected_code` and `rationale`. Components, delivery
+codes and recovery codes are the controlled lists above; `expected_code`
+follows the same rules as an imported code (`not_intended` ↔ `not_applicable`,
+a could-not-tell answer is `not_recovered`). Text fields reject URLs and
+contact details, and errors name keys and anchor IDs, never text.
+
+Binding: `codebook_version` must equal the codebook version in force, and
+`codebook_sha256` must equal SHA-256 of `docs/INTENT_CODEBOOK.md` with line
+endings normalized to LF (so CRLF and LF checkouts agree). A pinned file
+(`<set>.sha256`) records SHA-256 of the set's bytes. Changing the codebook
+therefore refuses the set until it is re-bound on purpose.
+
+`intent-anchors verify|sheet|check --anchors <set> [--pinned <file>]`
+verifies the set, writes a blind CSV (no expected codes or rationales), or
+compares one coder's filled sheet with the expected codes (mismatches by
+anchor ID only). Anchor codes are practice data: never stored in the lab
+database and never pooled with study codes. Anchors are invented, never study
+items. `team_c/anchors/practice_anchors.json` holds the codebook's practice
+anchors as a draft set for calibration; study drift anchors are frozen with
+the codebook.
+
 ## Adjudication
 
 Adjudication is stored as a separate append-only decision linked to annotations. It must never modify or delete a rater's original response.

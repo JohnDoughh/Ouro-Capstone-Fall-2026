@@ -143,7 +143,12 @@ def _pooled(units: list[dict], key) -> dict:
 
 def _agreement(units: list[dict], components: tuple[str, ...], seed: int, samples: int,
                order: list[str] | None = None) -> dict:
-    """Alpha over raw codes; not_intended units are excluded (their code is forced)."""
+    """Alpha over raw codes; not_intended units are excluded (their code is forced).
+
+    One code per coder per unit (import refuses a changed code), so there are
+    no same-coder repeats to separate. The bootstrap resamples whole responses
+    (all components of one response together) within clip.
+    """
     clusters: dict[str, list[list[str]]] = defaultdict(list)
     clip_of: dict[str, str] = {}
     for unit in units:

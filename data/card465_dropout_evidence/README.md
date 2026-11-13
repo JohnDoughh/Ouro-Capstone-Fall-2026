@@ -8,6 +8,7 @@ The original submitted observation and original exports are preserved unchanged 
 
 - Artifact: `syn-tone-b`, `data/public_audio/dropout.wav`
 - SHA-256: `9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478`
+- Artifact version: `v1`
 - Byte length: 336044
 - Generated dropout: `[4.000, 5.000)` seconds
 
@@ -31,6 +32,14 @@ counts are emitted only when an input is explicitly marked as an independent,
 comparable reference; the committed fictional example therefore marks those
 metrics unavailable instead of treating its demonstration annotation as
 ground truth.
+
+The fictional annotation and simulated evaluation both explicitly declare
+`artifact_version`. It versions the pinned media and is independent of the
+annotation, evaluator and report schema versions. A hash or version mismatch
+stops the comparison with a validation error before metrics are calculated.
+Earlier fixture records without a version are rejected until explicitly
+versioned. Native AVC records remain on the separate `inspect-avc` path and
+are excluded from this simulated report.
 
 The builder checks media bytes, artifact identity, human-shaped ordinal scales and timestamps, explicit fictional annotation provenance and simulated output provenance. It rejects unmarked/course-observation inputs. Outputs use explicit UTF-8 LF bytes on every OS; Git preserves the committed fixture/export bytes. Repeated runs match the committed JSON files and SHA256SUMS byte for byte.
 

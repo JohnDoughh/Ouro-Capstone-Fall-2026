@@ -91,6 +91,12 @@ python -m ouro_eval_lab.cli benchmark --manifest data/fixtures/manifest.json --o
 python -m ouro_eval_lab.cli export --db data/lab.db --out data/exports/annotations.json
 python -m ouro_eval_lab.cli agreement --db data/lab.db --out data/exports/agreement.json
 python -m ouro_eval_lab.cli inspect-avc --manifest path/to/manifest.json --evaluation path/to/evaluation.json --out data/exports/native-avc-inspection.json
+python -m ouro_eval_lab.cli serve --db data/intent-demo.db --port 8080 --study intent --play-limit 2
+python -m ouro_eval_lab.cli export-intent --db data/intent-demo.db --out data/exports/intent-responses.json
+python -m ouro_eval_lab.cli reveal --db data/intent-demo.db --records path/to/revealed/records
+python -m ouro_eval_lab.cli intent-coding-sheet --db data/intent-demo.db --coder coder_1 --out data/exports/coding/coder_1.csv
+python -m ouro_eval_lab.cli intent-import-codes --db data/intent-demo.db --coder coder_1 --codes data/exports/coding/coder_1.csv
+python -m ouro_eval_lab.cli intent-report --db data/intent-demo.db --out data/exports/intent-report.json
 ```
 
 ## Non-negotiable boundaries

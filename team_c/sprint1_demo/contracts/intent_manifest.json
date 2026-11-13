@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.1.0-sprint1",
+  "artifact_id": "ad_001",
+  "artifact_sha256": "cbb1aa33b7e6bac3e0cf04a4e24eb32907e7bb787b7ae652e3b187938c44f0af",
+  "status": "synthetic",
+  "beats": {
+    "thesis": {
+      "description": "A running shoe redesigned to feel weightless.",
+      "required": true
+    },
+    "hook": {
+      "description": "Sunrise runner visual paired with 'you'd barely feel it's there.'",
+      "required": true
+    },
+    "proof": {
+      "description": "No proof or evidence is present in this fixture (deliberate gap).",
+      "required": false,
+      "expected_recovery": "none"
+    },
+    "offer": {
+      "description": "20% off, valid through Friday.",
+      "required": true
+    },
+    "cta": {
+      "description": "Link in bio.",
+      "required": true
+    }
+  },
+  "notes": "Synthetic fixture for Sprint 1 walking-skeleton demonstration only. Not a research finding."
+}

@@ -1,0 +1,36 @@
+{
+  "annotation_version": "0.1.0-sprint1",
+  "status": "FICTIONAL_TEST_RESPONSE",
+  "note": "Fictional test data written to exercise the pipeline. V-001 is not a real person and this is not a participant annotation. No real participant data is collected before FIU's human-subjects determination.",
+  "artifact_id": "ad_001",
+  "viewer_id": "V-001",
+  "stage": "stage_1_artifact_only",
+  "responses": {
+    "thesis": {
+      "recovered_text": "The shoe is super light, redesigned so you don't notice you're wearing it.",
+      "confidence": 4,
+      "ambiguity_flag": false
+    },
+    "hook": {
+      "recovered_text": "Runner going out for a sunrise run, focus on the shoes feeling light.",
+      "confidence": 4,
+      "ambiguity_flag": false
+    },
+    "proof": {
+      "recovered_text": "Nothing specific, no numbers or comparison given.",
+      "confidence": 5,
+      "ambiguity_flag": false
+    },
+    "offer": {
+      "recovered_text": "20% off, sounded time-limited but I wasn't sure exactly when it ends.",
+      "confidence": 3,
+      "ambiguity_flag": true
+    },
+    "cta": {
+      "recovered_text": "Check the link in their bio.",
+      "confidence": 5,
+      "ambiguity_flag": false
+    }
+  },
+  "timing_seconds": 47
+}

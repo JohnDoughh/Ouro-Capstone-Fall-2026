@@ -13,3 +13,5 @@ data/card465_dropout_evidence/*.json -text
 data/card465_dropout_evidence/exports/*.json -text
 data/card465_dropout_evidence/exports/SHA256SUMS -text
 team_c/sprint1_demo/** -text
+team_c/anchors/*.json -text
+team_c/anchors/*.sha256 -text

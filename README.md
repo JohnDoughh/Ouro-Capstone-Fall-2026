@@ -98,7 +98,15 @@ python -m ouro_eval_lab.cli intent-coding-sheet --db data/intent-demo.db --coder
 python -m ouro_eval_lab.cli intent-import-codes --db data/intent-demo.db --coder coder_1 --codes data/exports/coding/coder_1.csv
 python -m ouro_eval_lab.cli intent-report --db data/intent-demo.db --out data/exports/intent-report.json --html data/exports/intent-report.html
 python -m ouro_eval_lab.cli intent-pilot --out data/exports/intent-pilot.json --html data/exports/intent-pilot.html --expect team_c/intent_pilot/EXPECTED_SHA256
+python -m ouro_eval_lab.cli intent-status --db data/intent-demo.db
+python -m ouro_eval_lab.cli intent-anchors verify --anchors team_c/anchors/practice_anchors.json --pinned team_c/anchors/practice_anchors.sha256
 ```
+
+The intent study (Team C) needs `ingest --manifest data/public_intent/manifest.json`
+into its own database before `serve --study intent`. Step-by-step operation,
+roles, troubleshooting and a recorded walkthrough are in
+[`docs/TEAM_C_OPERATOR_GUIDE.md`](docs/TEAM_C_OPERATOR_GUIDE.md); what it does
+not do is in [`docs/TEAM_C_LIMITATIONS.md`](docs/TEAM_C_LIMITATIONS.md).
 
 ## Non-negotiable boundaries
 

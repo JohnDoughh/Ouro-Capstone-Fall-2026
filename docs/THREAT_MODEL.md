@@ -43,6 +43,8 @@
 | Answer leakage through files | The README next to the clips is not shown in the UI; sessions run from the UI only (exposure log not built) |
 | Pilot numbers read as findings | The pilot and every report say synthetic and not a research finding; the pilot report also says its viewers and coders are simulated |
 | Report and inputs drift apart | The report binds the freeze, commitments, records and codes by SHA-256; the HTML view binds its report by SHA-256 |
+| Coding drifts from the codebook | Anchor sets are bound to the codebook version and its LF-normalized SHA-256, and pinned by their own SHA-256; a changed codebook refuses the set until re-bound; anchors are invented, so they cannot reveal study answers |
+| Operator runs a step out of order | `intent-status` (read-only, no IDs or text) names the stage and the next command; `serve --study intent` refuses a database with no ingested clips |
 
 ## Release checklist
 

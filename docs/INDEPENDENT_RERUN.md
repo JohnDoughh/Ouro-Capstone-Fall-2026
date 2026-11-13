@@ -50,7 +50,14 @@ The result shows the protocol is reproducible. It is not a research finding.
    "Synthetic demo. Not a research finding." banner, that its footer lists the report hash from
    step 3, and that no viewer or coder IDs or free-text answers appear.
 6. Optional: add `--workdir <empty directory>` to keep the pilot's fictional clips, sealed records,
-   commitments, response freeze and database for inspection.
+   commitments, response freeze and database for inspection. Then
+   `python -m ouro_eval_lab.cli intent-status --db <that directory>/pilot.db` must print
+   `stage: coded` with `items_coded` equal to `items_issued`.
+7. `python -m ouro_eval_lab.cli intent-anchors verify --anchors team_c/anchors/practice_anchors.json --pinned team_c/anchors/practice_anchors.sha256`
+   must print `11 anchors` and exit 0 (the practice anchors are still bound to the codebook).
+
+The full operator procedure, including a live collection on the four fictional clips, is in
+`docs/TEAM_C_OPERATOR_GUIDE.md`.
 
 Record every step that failed or needed help.
 

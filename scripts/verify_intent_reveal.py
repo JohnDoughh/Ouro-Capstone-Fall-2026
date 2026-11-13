@@ -3,7 +3,8 @@
 
 Run this only after every blinded viewer response has been recorded and
 exported. It proves the revealed records are byte-identical to what was frozen
-before viewing, and that each record names the clip it claims to describe.
+before viewing, that each record names the clip it claims to describe, and
+that each record satisfies the intent-record contract.
 """
 from __future__ import annotations
 
@@ -13,7 +14,12 @@ import json
 import sys
 from pathlib import Path
 
-DEFAULT_DIR = Path(__file__).resolve().parents[1] / "data" / "public_intent"
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from ouro_eval_lab.contracts import ContractError, validate_intent_record  # noqa: E402
+
+DEFAULT_DIR = ROOT / "data" / "public_intent"
 
 
 def read_commitments(path: Path) -> dict[str, str]:
@@ -28,7 +34,7 @@ def read_commitments(path: Path) -> dict[str, str]:
     return commitments
 
 
-def verify(commitments_path: Path, records_dir: Path, manifest_path: Path) -> list[str]:
+def verify(commitments_path: Path, records_dir: Path, manifest_path: Path, schema: bool = True) -> list[str]:
     commitments = read_commitments(commitments_path)
     artifacts = {a["relative_path"]: a["artifact_id"] for a in json.loads(manifest_path.read_text())["artifacts"]}
     problems = []
@@ -54,6 +60,12 @@ def verify(commitments_path: Path, records_dir: Path, manifest_path: Path) -> li
             problems.append(f"{name}: names a clip that is not in the manifest")
         elif name != Path(clip).stem + ".intent.json":
             problems.append(f"{name}: record name does not match its clip")
+        elif schema:
+            # Only bytes that match their commitment are worth schema-checking.
+            try:
+                validate_intent_record(record)
+            except ContractError as exc:
+                problems.append(f"{name}: {exc}")
     return problems
 
 
@@ -62,12 +74,17 @@ def main() -> int:
     parser.add_argument("--records", type=Path, required=True, help="directory holding the revealed *.intent.json files")
     parser.add_argument("--commitments", type=Path, default=DEFAULT_DIR / "intent_commitments.sha256")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_DIR / "manifest.json")
+    parser.add_argument(
+        "--skip-schema", action="store_true",
+        help="check commitments only, without the intent-record contract",
+    )
     args = parser.parse_args()
-    problems = verify(args.commitments, args.records, args.manifest)
+    problems = verify(args.commitments, args.records, args.manifest, schema=not args.skip_schema)
     for problem in problems:
         print(f"FAIL {problem}")
     if not problems:
-        print(f"OK {len(read_commitments(args.commitments))} revealed intent records match their commitments")
+        checked = "match their commitments" + ("" if args.skip_schema else " and the intent-record contract")
+        print(f"OK {len(read_commitments(args.commitments))} revealed intent records {checked}")
     return 1 if problems else 0
 
 

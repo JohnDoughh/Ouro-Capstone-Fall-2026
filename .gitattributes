@@ -1,4 +1,6 @@
 # Preserve committed hash-bound output bytes on every checkout.
+# Without this, Windows checkouts with core.autocrlf=true rewrite LF to CRLF
+# and the hashes no longer match.
 data/public_playable/simulated_evaluator_outputs.json -text
 data/public_playable/simulated_evaluator_outputs.sha256 -text
 data/public_playable/manifest.json -text
@@ -10,3 +12,6 @@ data/public_intent/intent_commitments.sha256 -text
 data/card465_dropout_evidence/*.json -text
 data/card465_dropout_evidence/exports/*.json -text
 data/card465_dropout_evidence/exports/SHA256SUMS -text
+team_c/sprint1_demo/** -text
+team_c/anchors/*.json -text
+team_c/anchors/*.sha256 -text

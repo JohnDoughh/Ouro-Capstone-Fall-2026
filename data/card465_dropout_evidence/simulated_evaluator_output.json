@@ -1,6 +1,7 @@
 {
   "artifact_id": "syn-tone-b",
   "artifact_sha256": "9f4f1593b2b5c7f24495f9e1f12d55920cde80d8608916bbb5d70d72e8d10478",
+  "artifact_version": "v1",
   "confidence": 0.99,
   "contract_version": "1.0.0",
   "evaluated_at": "2026-10-12T00:00:00+00:00",

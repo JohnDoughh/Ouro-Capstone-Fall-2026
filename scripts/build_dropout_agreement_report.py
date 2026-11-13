@@ -16,26 +16,22 @@ try:
     from scripts.build_card465_dropout_evidence import (
         load_object,
         validate_human,
+        validate_media_pair,
         validate_simulated,
     )
 except ModuleNotFoundError:  # Direct execution adds scripts/, not the repository root.
     from build_card465_dropout_evidence import (  # type: ignore[no-redef]
         load_object,
         validate_human,
+        validate_media_pair,
         validate_simulated,
     )
 
 
 def build_report(annotation: dict, evaluation: dict) -> dict:
+    validate_media_pair(annotation, evaluation)
     validate_human(annotation)
     validate_simulated(evaluation)
-
-    same_artifact = (
-        annotation["artifact_id"] == evaluation["artifact_id"]
-        and annotation["artifact_sha256"] == evaluation["artifact_sha256"]
-    )
-    if not same_artifact:
-        raise ValueError("annotation and evaluator output must identify the same media bytes")
 
     human_verdict = annotation["verdict"]
     evaluator_verdict = evaluation["verdict"]
@@ -69,7 +65,7 @@ def build_report(annotation: dict, evaluation: dict) -> dict:
         }
 
     return {
-        "report_version": "1.0.0",
+        "report_version": "1.1.0",
         "synthetic_demo": True,
         "disclaimer": (
             "Fictional annotation and simulated evaluator demonstration; "
@@ -78,6 +74,7 @@ def build_report(annotation: dict, evaluation: dict) -> dict:
         "artifact": {
             "artifact_id": annotation["artifact_id"],
             "artifact_sha256": annotation["artifact_sha256"],
+            "artifact_version": annotation["artifact_version"],
         },
         "inputs": {
             "annotation_id": annotation["annotation_id"],
@@ -122,7 +119,10 @@ def main() -> int:
         default=Path("data/card465_dropout_evidence/exports/agreement-report.json"),
     )
     args = parser.parse_args()
-    write_report(args.annotation, args.evaluation, args.out)
+    try:
+        write_report(args.annotation, args.evaluation, args.out)
+    except ValueError as error:
+        parser.error(str(error))
     print(f"wrote reproducible dropout agreement report to {args.out}")
     return 0
 

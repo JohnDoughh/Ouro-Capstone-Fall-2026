@@ -1,0 +1,120 @@
+{
+  "schema": "team-c-intent-anchors",
+  "contract_version": "1.0.0",
+  "anchor_set_version": "practice-0.1-draft",
+  "codebook_version": "0.1-draft",
+  "codebook_sha256": "6b7432e12aadbe7fe3db1e02541de5d9cb094ccc665d64c2a9b1e99330e6fd31",
+  "fictional": true,
+  "anchors": [
+    {
+      "anchor_id": "P1-01",
+      "component": "key_benefit",
+      "delivery": "explicit_text",
+      "intended_text": "feels weightless",
+      "viewer_text": "so light you forget you're wearing them",
+      "viewer_could_not_tell": false,
+      "expected_code": "recovered",
+      "rationale": "Same meaning, different words."
+    },
+    {
+      "anchor_id": "P1-02",
+      "component": "key_benefit",
+      "delivery": "explicit_text",
+      "intended_text": "feels weightless",
+      "viewer_text": "it's a comfortable shoe",
+      "viewer_could_not_tell": false,
+      "expected_code": "partially_recovered",
+      "rationale": "Related but vaguer than weightless."
+    },
+    {
+      "anchor_id": "P1-03",
+      "component": "key_benefit",
+      "delivery": "explicit_text",
+      "intended_text": "feels weightless",
+      "viewer_text": "it's waterproof",
+      "viewer_could_not_tell": false,
+      "expected_code": "contradicted",
+      "rationale": "States a different benefit."
+    },
+    {
+      "anchor_id": "P1-04",
+      "component": "product",
+      "delivery": "explicit_text",
+      "intended_text": "Lumastep, a running shoe",
+      "viewer_text": "some kind of shoe",
+      "viewer_could_not_tell": false,
+      "expected_code": "partially_recovered",
+      "rationale": "Type without the running context or name, when the record has both."
+    },
+    {
+      "anchor_id": "P1-05",
+      "component": "call_to_action",
+      "delivery": "explicit_text",
+      "intended_text": "link in bio",
+      "viewer_text": "buy it",
+      "viewer_could_not_tell": false,
+      "expected_code": "not_recovered",
+      "rationale": "Generic; fits any ad."
+    },
+    {
+      "anchor_id": "P1-06",
+      "component": "call_to_action",
+      "delivery": "explicit_text",
+      "intended_text": "link in bio",
+      "viewer_text": "check their website",
+      "viewer_could_not_tell": false,
+      "expected_code": "partially_recovered",
+      "rationale": "Right action, wrong channel."
+    },
+    {
+      "anchor_id": "P1-07",
+      "component": "support",
+      "delivery": "not_intended",
+      "intended_text": "",
+      "viewer_text": "they said it's the lightest shoe ever",
+      "viewer_could_not_tell": false,
+      "expected_code": "not_applicable",
+      "rationale": "Support was not_intended; whatever the viewer wrote is not coded."
+    },
+    {
+      "anchor_id": "P2-01",
+      "component": "support",
+      "delivery": "visual_only",
+      "intended_text": "screen shows notes syncing across devices",
+      "viewer_text": "it showed the phone and laptop updating together",
+      "viewer_could_not_tell": false,
+      "expected_code": "recovered",
+      "rationale": "Describes the visual; naming it is not required."
+    },
+    {
+      "anchor_id": "P2-02",
+      "component": "call_to_action",
+      "delivery": "omitted_in_edit",
+      "intended_text": "download free",
+      "viewer_text": "",
+      "viewer_could_not_tell": true,
+      "expected_code": "not_recovered",
+      "rationale": "Could not tell; expected for omitted_in_edit and still coded as usual."
+    },
+    {
+      "anchor_id": "P2-03",
+      "component": "audience",
+      "delivery": "explicit_text",
+      "intended_text": "students",
+      "viewer_text": "busy professionals",
+      "viewer_could_not_tell": false,
+      "expected_code": "contradicted",
+      "rationale": "Names a different audience."
+    },
+    {
+      "anchor_id": "P2-04",
+      "component": "audience",
+      "delivery": "explicit_text",
+      "intended_text": "students",
+      "viewer_text": "people who take notes",
+      "viewer_could_not_tell": false,
+      "expected_code": "partially_recovered",
+      "rationale": "Correct but vaguer than students."
+    }
+  ]
+}

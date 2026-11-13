@@ -93,13 +93,67 @@ coerced into Brier/ECE calculations.
 
 ### Intent Fidelity
 
-Intent Fidelity is documented but not implemented. Missing elements include:
+Intent Fidelity Stage 1 is implemented (Team C, Sprint 2):
 
-- a sanitized intent-manifest contract;
-- blinded viewer-recovery questions;
-- independent coder comparison;
-- thesis, hook, proof, offer, CTA, and critical-beat survival metrics;
-- separation between observable recovery and perceived persuasion.
+- intent-record contract `2.0.0`, matching the committed nested envelope of
+  the sealed records (structure checked in the PR #23 review), validated by
+  `scripts/verify_intent_reveal.py` after the commitment check;
+- blinded viewer capture: `serve --study intent`, a recall form with certainty
+  and “could not tell”, a server-held play limit that survives reload
+  (append-only `intent_plays`), no repeat exposures, append-only
+  `intent_responses`, and idempotent receipts;
+- `export-intent`, which freezes responses by SHA-256 and closes collection;
+  the browser shows a final “collection closed” state after the freeze;
+- `reveal`, which refuses until a freeze exists and loads verified records
+  into append-only tables bound to that freeze (Sprint 3);
+- blinded coder sheets (`intent-coding-sheet`) and append-only code import
+  (`intent-import-codes`); each code is bound to the SHA-256 of the exact
+  response, revealed record and clip (Sprint 4);
+- a draft coding codebook, `docs/INTENT_CODEBOOK.md` (not yet calibrated or
+  frozen);
+- `intent-report`, a deterministic JSON report labelled synthetic: recovery,
+  contradiction and survival per clip and component, delivery strata,
+  comprehension disruption, viewer calibration, the ambiguity list, and
+  Krippendorff's alpha with a bootstrap interval (shared function in
+  `metrics.py`) (Sprint 4);
+- `intent-report --html`, an offline HTML view of that report: a clip ×
+  component heatmap with survival, delivery codes, ambiguity and coder
+  disagreement, plus failure tables; no scripts, no free text, bound to the
+  report's SHA-256 (Sprint 5);
+- `intent-pilot` (and `make intent-pilot`, run by `make check`): a seeded
+  synthetic run of the whole intent study, from fictional records to the
+  report, with simulated viewers and coders. Its report hash is recorded in
+  `team_c/intent_pilot/EXPECTED_SHA256` and must match byte for byte
+  (Sprint 5);
+- `intent-status`: a read-only check that prints a study database's stage
+  (empty, collecting, frozen, revealed, coding, coded), counts, the freeze
+  hash, warnings against the pre-registered minimums, and the next command;
+  `serve --study intent` now refuses a database with no ingested clips
+  (Sprint 5);
+- drift-anchor contract `1.0.0` and `intent-anchors verify|sheet|check`,
+  with the codebook's practice anchors committed as a draft set for the
+  calibration round (`team_c/anchors/`, checked by `make check`) (Sprint 5);
+- an operator guide with a recorded walkthrough
+  (`docs/TEAM_C_OPERATOR_GUIDE.md`) and a limitations statement
+  (`docs/TEAM_C_LIMITATIONS.md`) (Sprint 5).
+
+Still missing:
+
+- adjudication records (shape proposed to Teams A and B in
+  `docs/ADJUDICATION_PROPOSAL.md`); until then, survival is reported only
+  where coders agree;
+- offer and critical-beat measures (not in the sealed records); thesis, hook,
+  proof and CTA are reported only as derived labels on their fields;
+- evaluator comparison, which needs an intent evaluator-output contract;
+- separation between observable recovery and perceived persuasion in reporting.
+  Stage 1 collects no persuasion items;
+- study drift anchors (`data/public_intent/anchors.json`): the format and
+  checks exist, but the set waits for the codebook to be calibrated and
+  frozen;
+- a rerun of the intent section of `docs/INDEPENDENT_RERUN.md` by someone who
+  did not build it;
+- free-text snippets in the HTML view (left out: the view shows only the
+  report, which carries no viewer text).
 
 ### Failure analysis and drift
 

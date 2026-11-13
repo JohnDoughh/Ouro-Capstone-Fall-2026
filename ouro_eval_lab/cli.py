@@ -8,7 +8,7 @@ from .api import serve
 from .contracts import validate_manifest
 from .fixtures import generate
 from .runner import agreement_report, compare_responses, export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
-from .store import connect, ingest, initialize
+from .store import connect, connect_readonly, ingest, initialize
 
 
 def _write(path: Path, content: str) -> None:
@@ -121,7 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")
-        with connect(args.db) as db:
+        if args.out.resolve() == args.db.resolve():
+            parser.error("agreement output must not overwrite the lab database")
+        with connect_readonly(args.db) as db:
             _write(args.out, json.dumps(agreement_report(db), indent=2, sort_keys=True) + "\n")
         print(f"wrote {args.out}")
     elif args.command == "inspect-avc":

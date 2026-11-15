@@ -133,7 +133,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.out.exists() and source.exists() and args.out.samefile(source)
             ):
                 raise ValueError("family 4 check output must not overwrite an input or media file")
-        if args.out.resolve().parent == args.manifest.resolve().parent:
+        # Nothing may be added anywhere under the fixture directory, subfolders included.
+        if args.out.resolve().is_relative_to(args.manifest.resolve().parent):
             raise ValueError("write the family 4 check report outside the fixture directory")
         report = family4_check(args.manifest, args.responses, args.reference)
         args.out.parent.mkdir(parents=True, exist_ok=True)

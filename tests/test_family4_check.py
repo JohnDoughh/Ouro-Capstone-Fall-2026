@@ -131,11 +131,12 @@ class Family4CheckTests(unittest.TestCase):
 
     def test_cli_refuses_to_write_into_inputs_or_fixture_directory(self):
         responses = self.export(row("a1", DEFECT))
-        for out in (responses, REFERENCE, ORBIT / "family4.json"):
+        for out in (responses, REFERENCE, ORBIT / "family4.json", ORBIT / "reports" / "family4.json"):
             with self.subTest(out=out), self.assertRaises(ValueError):
                 main(["family4-check", "--manifest", str(MANIFEST), "--responses", str(responses),
                       "--reference", str(REFERENCE), "--out", str(out)])
         self.assertFalse((ORBIT / "family4.json").exists())
+        self.assertFalse((ORBIT / "reports").exists())
 
     def test_compare_report_and_fixture_bytes_are_unchanged(self):
         responses = self.export(row("a1", DEFECT), row("a2", CLEAN, "PASS", ""))

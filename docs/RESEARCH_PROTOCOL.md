@@ -67,6 +67,15 @@ reliability. Bootstrap intervals omit undefined resamples and return
 `[null, null]` when none are defined. They remain exploratory; this convention
 does not establish independent participants or validate a study's sampling.
 
+The offline agreement report applies these rules to two separate analyses.
+Inter-rater agreement uses each rater's earliest assignment per artifact and
+compares every distinct pair of raters. Repeat consistency compares adjacent
+assignments by the same rater for the same artifact within a repeat group; it
+is never reported as inter-rater agreement. Only `PASS`/`HOLD` pairs are
+eligible. A pair with a missing judgment counts as missing, otherwise a pair
+with `UNSURE` counts as `UNSURE`; both are reported and excluded from the
+denominator. An agreement rate with no eligible pairs is `null`, not 0 or 1.
+
 ## Analysis
 
 - Report per-family and pooled confusion matrices.

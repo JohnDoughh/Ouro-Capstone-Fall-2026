@@ -31,7 +31,7 @@ Do not begin real participant annotation until FIU has recorded the applicable h
 - a browser annotation interface with blinded randomized assignments, confidence, timing, and repeat-item controls;
 - raw annotation preservation and a separate adjudication database schema;
 - a synthetic benchmark runner for false `PASS`, false `HOLD`, Brier score, ECE, and risk-versus-coverage;
-- basic two-rater agreement with confidence intervals;
+- offline inter-rater agreement and same-rater repeat consistency, reported separately with explicit `UNSURE`/missing counts;
 - JSON/CSV annotation export;
 - a separately versioned native AVC inspection path that preserves native approve/hold/reject, null probability, coverage, and modality states without changing the frozen v1 benchmark;
 - export-boundary scanning, Docker support, tests, and handoff documentation.

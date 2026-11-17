@@ -7,7 +7,8 @@ import json
 from pathlib import Path
 
 from .contracts import ANNOTATION_CONTRACT_VERSION, validate_evaluator_output, validate_manifest, validate_native_avc_output, HUMAN_VERDICTS
-from .metrics import bootstrap_kappa_interval, cohens_kappa, evaluator_report
+from .agreement import agreement_rows, calculate as calculate_agreement
+from .metrics import evaluator_report
 
 
 def load_json(path: Path) -> object:
@@ -270,16 +271,9 @@ def export_annotations(db, format_name: str = "json") -> str:
 
 
 def agreement_report(db, seed: int = 20260825) -> dict:
-    records = db.execute(
-        "SELECT artifact_sha256, rater_id, verdict FROM annotations WHERE verdict != 'UNSURE' ORDER BY artifact_sha256, rater_id"
-    ).fetchall()
-    by_artifact: dict[str, list] = {}
-    for row in records:
-        by_artifact.setdefault(row["artifact_sha256"], []).append(row)
-    pairs = [(items[0]["verdict"], items[1]["verdict"]) for items in by_artifact.values() if len(items) >= 2]
-    return {
-        "pair_count": len(pairs),
-        "cohens_kappa": cohens_kappa(pairs),
-        "cohens_kappa_95ci": bootstrap_kappa_interval(pairs, seed),
-        "note": "Uses the first two pseudonymous raters per artifact; extend to Krippendorff alpha for 3+ raters.",
-    }
+    """Separate inter-reviewer agreement from same-reviewer repeat consistency.
+
+    Read-only: selects assignments and annotations and never writes, so the
+    original judgments are preserved exactly as stored.
+    """
+    return calculate_agreement(agreement_rows(db), seed)

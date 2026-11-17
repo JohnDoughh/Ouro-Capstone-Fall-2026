@@ -91,6 +91,16 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return connection
 
 
+def connect_readonly(path: Path | str) -> sqlite3.Connection:
+    """Open an existing database without write access (offline reports)."""
+    path = Path(path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"database not found: {path}")
+    connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, factory=ManagedConnection)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
 def initialize(path: Path | str) -> None:
     with connect(path) as db:
         db.executescript(SCHEMA)

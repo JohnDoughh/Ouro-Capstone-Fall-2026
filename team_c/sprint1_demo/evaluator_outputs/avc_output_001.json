@@ -1,0 +1,29 @@
+{
+  "evaluator_output_version": "0.1.0-sprint1",
+  "artifact_id": "ad_001",
+  "status": "SYNTHETIC_PLACEHOLDER",
+  "evaluator_alias": "simulated-evaluator-v0",
+  "note": "Simulated evaluator record. Team C has no real or frozen AVC output. These verdicts and confidences were written by hand to match the shape of the evaluator-output envelope, so the comparison and scoreboard can be tested end to end. They say nothing about AVC.",
+  "beat_judgments": {
+    "thesis": {
+      "verdict": "PASS",
+      "confidence": 0.81
+    },
+    "hook": {
+      "verdict": "PASS",
+      "confidence": 0.77
+    },
+    "proof": {
+      "verdict": "PASS",
+      "confidence": 0.52
+    },
+    "offer": {
+      "verdict": "PASS",
+      "confidence": 0.64
+    },
+    "cta": {
+      "verdict": "PASS",
+      "confidence": 0.9
+    }
+  }
+}

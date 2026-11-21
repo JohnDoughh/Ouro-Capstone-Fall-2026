@@ -23,7 +23,8 @@ The implementation commit has passing CI for unit tests, compilation, public-bou
 - Five-point human confidence, 0-to-3 severity, generic reason codes, optional notes, and start/completion times.
 - Append-only raw annotation behavior.
 - False PASS and false HOLD calculations with Wilson intervals.
-- Brier score, expected calibration error, risk-versus-coverage, and basic Cohen's kappa.
+- Brier score, expected calibration error, risk-versus-coverage, and exploratory Cohen's kappa.
+- Offline report separating inter-rater agreement from same-rater repeat consistency, with explicit `UNSURE`/missing counts and `null` for undefined metrics.
 - JSON and CSV annotation exports.
 - Playable fictional MP4 practice fixtures with byte-bound manifests.
 - A separately versioned native AVC inspection validator/CLI that preserves native decisions and explicitly excludes unavailable probability from calibration.
@@ -38,14 +39,15 @@ The current benchmark joins anonymous evaluator outputs directly to seeded synth
 
 ### Agreement analysis
 
-The current agreement endpoint uses the first two non-UNSURE annotation rows for each artifact. Because repeat assignments can create multiple rows from the same rater, this must be replaced before reporting inter-rater agreement. The final design must separate:
+The offline agreement report (`python -m ouro_eval_lab.cli agreement`, Card #1427) now separates:
 
-- within-rater repeat consistency;
-- between-rater agreement;
-- adjudicated reference labels;
-- uncertainty and disagreement distributions.
+- between-rater agreement: the earliest assignment per rater and artifact, then all distinct-rater pairs, so a rater's repeat never stands in for a second rater;
+- within-rater repeat consistency: adjacent assignments by the same rater for the same artifact within one repeat group;
+- `UNSURE` and missing judgments, which are counted separately (missing takes precedence) and excluded from every denominator.
 
-The final multi-rater method should support at least three independent raters and use Krippendorff's alpha or another pre-registered method suitable for the selected label scale.
+Undefined values are reported as `null` with a status: agreement rates when there are no eligible pairs, and Cohen's kappa when there are no eligible pairs or every pair uses one category (PR #35). The report opens the database read-only and never changes stored judgments.
+
+Still required: adjudicated reference labels, uncertainty and disagreement distributions, and a pre-registered multi-rater method (for example Krippendorff's alpha) for three or more independent raters. Pairwise kappa and its bootstrap interval remain exploratory.
 
 ### Media realism
 

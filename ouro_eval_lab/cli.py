@@ -28,7 +28,7 @@ from .intent_html import render_intent_html
 from .intent_pilot import PILOT_SAMPLES, run_pilot
 from .intent_status import intent_status, render_status
 from .reveal import DEFAULT_DIR as INTENT_DIR, RevealRefused, reveal
-from .store import STUDIES, connect, ingest, initialize, record_intent_freeze, study_conflict
+from .store import STUDIES, connect, connect_readonly, ingest, initialize, record_intent_freeze, study_conflict
 
 
 def _write_bytes(path: Path, content: bytes) -> None:
@@ -405,8 +405,16 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "agreement":
         if not args.db.is_file():
             parser.error("agreement requires an existing local lab database")
-        with connect(args.db) as db:
-            _write(args.out, json.dumps(agreement_report(db), indent=2, sort_keys=True) + "\n")
+        if args.out.resolve() == args.db.resolve():
+            parser.error("agreement output must not overwrite the lab database")
+        try:
+            with connect_readonly(args.db) as db:
+                body = json.dumps(agreement_report(db), indent=2, sort_keys=True) + "\n"
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            with args.out.open("x", encoding="utf-8", newline="\n") as output:
+                output.write(body)
+        except FileExistsError:
+            parser.error("agreement output requires a new file path")
         print(f"wrote {args.out}")
     elif args.command == "inspect-avc":
         report = inspect_native_avc(args.manifest, args.evaluation)

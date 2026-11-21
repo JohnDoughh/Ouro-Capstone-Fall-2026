@@ -256,7 +256,7 @@ class LabApiTests(unittest.TestCase):
                 capture_output=True, text=True, check=False,
             )
             self.assertEqual(command.returncode, 0, command.stderr)
-            self.assertEqual(json.loads(report_path.read_text())["pair_count"], 1)
+            self.assertEqual(json.loads(report_path.read_text())["inter_reviewer_agreement"]["pair_count"], 1)
 
     def test_offline_agreement_does_not_create_an_empty_database(self):
         with tempfile.TemporaryDirectory() as directory:

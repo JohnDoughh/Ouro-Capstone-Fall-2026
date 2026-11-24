@@ -24,6 +24,13 @@ This is a working v0.1 scaffold, not a completed research lab and not a source o
 
 Do not begin real participant annotation until FIU has recorded the applicable human-subjects determination and the gates in `CURRENT_STATUS.md` have been satisfied.
 
+## Team B showcase credits
+
+- Ouro Multimodal Evaluation Lab, by the Ouro Capstone Contributors. Team B built its dropout demonstration and evidence workflow on this shared scaffold. [Apache License 2.0](LICENSE).
+- Python 3 and its standard library were used to run the reviewer-agreement comparison and regression tests. [Python Software Foundation License and bundled notices](https://docs.python.org/3/license.html).
+- The FIU Knight Foundation School of Computing and Information Sciences Capstone Program provided the showcase templates and official school logo.
+- The showcase uses the shared lab’s public synthetic clean and dropout audio clips. The dropout clip has one second of silence from 00:04 to 00:05. [Audio source and generation notes](data/public_audio/README.md).
+
 ## What ships in the scaffold
 
 - deterministic synthetic fixtures and SHA-256 manifests;

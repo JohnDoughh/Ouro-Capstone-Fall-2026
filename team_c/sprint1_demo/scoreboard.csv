@@ -1,0 +1,6 @@
+artifact_id,beat,viewer_confidence,viewer_ambiguity_flag,human_recovered,avc_verdict,avc_confidence,avc_human_agree
+ad_001,thesis,4,False,True,PASS,0.81,True
+ad_001,hook,4,False,True,PASS,0.77,True
+ad_001,proof,5,False,True,PASS,0.52,True
+ad_001,offer,3,True,False,PASS,0.64,False
+ad_001,cta,5,False,True,PASS,0.9,True

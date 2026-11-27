@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .api import serve
+from .family4_check import family4_check
 from .contracts import validate_manifest
 from .fixtures import generate
 from .runner import agreement_report, compare_responses, export_annotations, inspect_native_avc, load_json, run_benchmark, verify_manifest
@@ -56,6 +57,11 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument("--outputs", type=Path, required=True)
     compare.add_argument("--responses", type=Path, required=True)
     compare.add_argument("--out", type=Path, required=True)
+    family4 = sub.add_parser("family4-check", help="report family 4 reference and timing checks for a frozen Orbit response")
+    family4.add_argument("--manifest", type=Path, required=True)
+    family4.add_argument("--responses", type=Path, required=True)
+    family4.add_argument("--reference", type=Path, required=True, help="the approved reference digest file, e.g. data/public_playable/reference.sha256")
+    family4.add_argument("--out", type=Path, required=True)
     export = sub.add_parser("export")
     export.add_argument("--db", type=Path, required=True)
     export.add_argument("--out", type=Path, required=True)
@@ -110,6 +116,27 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("comparison output must not overwrite an input or media file")
         report = compare_responses(args.manifest, args.outputs, args.responses)
         # LF bytes on every OS so a rerunner's report hash matches.
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_bytes((json.dumps(report, indent=2, sort_keys=True) + "\n").encode())
+        print(f"wrote {args.out}")
+    elif args.command == "family4-check":
+        protected = [args.manifest, args.responses, args.reference]
+        manifest = load_json(args.manifest)
+        if isinstance(manifest, dict):
+            protected.extend(
+                args.manifest.parent / row["relative_path"]
+                for row in manifest.get("artifacts", [])
+                if isinstance(row, dict) and isinstance(row.get("relative_path"), str)
+            )
+        for source in protected:
+            if args.out.resolve() == source.resolve() or (
+                args.out.exists() and source.exists() and args.out.samefile(source)
+            ):
+                raise ValueError("family 4 check output must not overwrite an input or media file")
+        # Nothing may be added anywhere under the fixture directory, subfolders included.
+        if args.out.resolve().is_relative_to(args.manifest.resolve().parent):
+            raise ValueError("write the family 4 check report outside the fixture directory")
+        report = family4_check(args.manifest, args.responses, args.reference)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_bytes((json.dumps(report, indent=2, sort_keys=True) + "\n").encode())
         print(f"wrote {args.out}")

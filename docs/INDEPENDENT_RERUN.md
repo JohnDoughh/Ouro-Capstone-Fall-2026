@@ -32,3 +32,27 @@ symbolic or hard-link aliases) that would overwrite the manifest, evaluator
 outputs, saved responses or media. JSON inputs are UTF-8 on every platform.
 
 Limitations: evaluator outputs are simulated test data, not AVC. The response is a teammate practice rating, not research data. The comparison measures human vs evaluator agreement, not accuracy against ground truth. Do not regenerate or edit the frozen outputs or the saved export. The report contains evaluator verdicts per artifact hash, so keep it away from anyone who has not finished rating.
+
+## Family 4 reference and timing check (card #870)
+
+A separate report run after the #813 response is frozen. It does not change
+`cli compare`, its report, or anything under `data/public_playable`.
+
+1. Use the same downloaded #813 export as the comparison and confirm its SHA-256 matches the hash recorded on #813. Do not re-export.
+2. `python -m ouro_eval_lab.cli family4-check --manifest data/public_playable/manifest.json --responses <export.json> --reference data/public_playable/reference.sha256 --out data/exports/orbit-family4-check.json`
+3. `approved_reference_sha256` in the report must equal the digest in `data/public_playable/reference.sha256`; the command refuses to run if the reference image bytes do not match it.
+4. Print the report SHA-256 (`sha256sum` or PowerShell `Get-FileHash`) and compare it with the hash recorded on #870.
+
+For each `HOLD` the report gives:
+
+- `reference`: `match`, `mismatch` or `missing` against the approved reference digest. A blind response keeps the reference hidden, so `missing` is expected there and is not a failed rating.
+- `timing`: `overlaps`, `misses` or `unparsed` against the documented `[2.500, 3.500)` s window of the defective clip, or `no_defect_window` for a `HOLD` on the clean clip. Timestamps are whole seconds, so `00:03` covers that full second and `00:03 - 00:04` runs to the end of second 4.
+
+`PASS` and `UNSURE` rows are counted and skipped. Rows are identified by
+`annotation_id` and artifact hash; rater IDs and source artifact IDs are not
+copied into the report.
+
+Limitations: timing overlap is not detection accuracy. The check reads the
+hidden truth and defect window, so run it only after the response is frozen and
+keep the report away from anyone who has not finished rating. The response is a
+teammate practice rating, not research data.
